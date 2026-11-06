@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.epub
+*.pdf
+
+.gradle/
+build/
+local.properties
+.idea/
+*.apk
+*.aab
+.DS_Store
