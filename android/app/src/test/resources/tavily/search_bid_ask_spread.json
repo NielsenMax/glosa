@@ -1,0 +1,30 @@
+{
+  "query": "bid-ask spread",
+  "answer": null,
+  "images": [],
+  "results": [
+    {
+      "url": "https://www.investopedia.com/terms/b/bid-askspread.asp",
+      "title": "Bid-Ask Spread: Definition and How It Works",
+      "content": "A bid-ask spread is the amount by which the ask price exceeds the bid price for an asset in the market. The bid-ask spread is essentially the difference between the highest price that a buyer is willing to pay for an asset and the lowest price that a seller is willing to accept.",
+      "score": 0.91,
+      "raw_content": null
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread",
+      "title": "Bid–ask spread - Wikipedia",
+      "content": "The bid–ask spread (also bid–offer or bid/ask and buy/sell in the case of a market maker) is the difference between the prices quoted (either by a single market maker or in a limit order book) for an immediate sale (ask) and an immediate purchase (bid).",
+      "score": 0.87,
+      "raw_content": null
+    },
+    {
+      "url": "https://example.org/empty",
+      "title": "",
+      "content": "",
+      "score": 0.12,
+      "raw_content": null
+    }
+  ],
+  "response_time": 1.04,
+  "request_id": "123e4567-e89b-12d3-a456-426614174111"
+}

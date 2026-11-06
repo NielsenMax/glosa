@@ -22,17 +22,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maxi.glosa.settings.AppearancePicker
 import org.readium.r2.navigator.preferences.FontFamily
-import org.readium.r2.navigator.preferences.ImageFilter
 import org.readium.r2.navigator.preferences.TextAlign
-import org.readium.r2.navigator.preferences.Theme
 
-private val themes = listOf(Theme.LIGHT to "Claro", Theme.SEPIA to "Sepia", Theme.DARK to "Oscuro")
 private val fonts = listOf(null to "Original", FontFamily.SERIF to "Serif", FontFamily.SANS_SERIF to "Sans")
 
 @Composable
 fun SettingsSheet(viewModel: ReaderViewModel) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
+    val appearance by viewModel.appearance.collectAsStateWithLifecycle()
 
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -50,20 +49,8 @@ fun SettingsSheet(viewModel: ReaderViewModel) {
                 Text("A", fontSize = 24.sp)
             }
         }
-        Labeled("Tema") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                themes.forEachIndexed { index, (theme, label) ->
-                    SegmentedButton(
-                        selected = (prefs.theme ?: Theme.LIGHT) == theme,
-                        onClick = {
-                            viewModel.updatePreferences {
-                                it.copy(theme = theme, imageFilter = if (theme == Theme.DARK) ImageFilter.DARKEN else null)
-                            }
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index, themes.size),
-                    ) { Text(label) }
-                }
-            }
+        Labeled("Apariencia") {
+            AppearancePicker(appearance, viewModel::setAppearance)
         }
         Labeled("Tipografía") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

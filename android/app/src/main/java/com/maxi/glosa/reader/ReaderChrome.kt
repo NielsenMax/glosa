@@ -49,6 +49,7 @@ interface ReaderChromeActions {
     fun go(locator: Locator)
     fun goToProgression(progression: Double)
     fun askClaude()
+    fun openUrl(url: String)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,7 +93,7 @@ fun ReaderChrome(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
         when (current) {
             ReaderSheet.Contents -> ContentsSheet(viewModel, actions)
             ReaderSheet.Settings -> SettingsSheet(viewModel)
-            ReaderSheet.Explain -> ExplainSheet(viewModel, onAskClaude = actions::askClaude)
+            ReaderSheet.Explain -> ExplainSheet(viewModel, actions)
             is ReaderSheet.HighlightDetail -> HighlightSheet(viewModel, current.highlightId)
         }
     }
@@ -133,8 +134,8 @@ private fun TopBar(
                     tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
             }
-            IconButton(onClick = onContents) { Icon(Icons.AutoMirrored.Filled.List, "Índice, resaltados y marcadores") }
-            IconButton(onClick = onSettings) { Icon(Icons.Filled.TextFields, "Letra y tema") }
+            IconButton(onClick = onContents) { Icon(Icons.AutoMirrored.Filled.List, "Índice, notas, marcadores y explicaciones") }
+            IconButton(onClick = onSettings) { Icon(Icons.Filled.TextFields, "Letra y apariencia") }
         }
     }
 }

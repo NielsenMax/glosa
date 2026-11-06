@@ -1,6 +1,7 @@
 package com.maxi.glosa.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
@@ -8,8 +9,13 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONArray
+import org.json.JSONObject
 
 @Dao
 interface BookDao {
@@ -40,6 +46,9 @@ interface HighlightDao {
     @Query("SELECT * FROM highlights WHERE bookId = :bookId ORDER BY progression")
     fun observeForBook(bookId: Long): Flow<List<Highlight>>
 
+    @Query("SELECT * FROM highlights WHERE bookId = :bookId")
+    suspend fun listForBook(bookId: Long): List<Highlight>
+
     @Query("SELECT * FROM highlights WHERE id = :id")
     suspend fun get(id: Long): Highlight?
 
@@ -65,11 +74,81 @@ interface BookmarkDao {
     suspend fun delete(id: Long)
 }
 
-@Database(entities = [Book::class, Highlight::class, Bookmark::class], version = 1, exportSchema = true)
+@Dao
+interface ExplanationDao {
+    @Transaction
+    @Query("SELECT * FROM explanations WHERE bookId = :bookId ORDER BY updatedAt DESC")
+    fun observeForBook(bookId: Long): Flow<List<ExplanationThread>>
+
+    @Transaction
+    @Query("SELECT * FROM explanations WHERE id = :id")
+    suspend fun get(id: Long): ExplanationThread?
+
+    @Transaction
+    @Query("SELECT * FROM explanations WHERE bookId = :bookId")
+    suspend fun listForBook(bookId: Long): List<ExplanationThread>
+
+    @Insert
+    suspend fun insert(explanation: Explanation): Long
+
+    @Insert
+    suspend fun insertTurn(turn: ExplanationTurn): Long
+
+    @Query("UPDATE explanations SET updatedAt = :updatedAt WHERE id = :id")
+    suspend fun touch(id: Long, updatedAt: Long)
+
+    @Query("DELETE FROM explanations WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    /** Saves the explanation the first time it gets an answer; returns its id. */
+    @Transaction
+    suspend fun record(explanation: Explanation, turn: ExplanationTurn): Long {
+        val id = if (explanation.id == 0L) insert(explanation) else explanation.id
+        touch(id, turn.createdAt)
+        insertTurn(turn.copy(explanationId = id))
+        return id
+    }
+}
+
+class SourceListConverter {
+    @TypeConverter
+    fun toJson(sources: List<Source>): String = JSONArray(
+        sources.map { source ->
+            JSONObject()
+                .put("kind", source.kind.name)
+                .put("title", source.title)
+                .putOpt("url", source.url)
+                .putOpt("locator", source.locatorJson)
+        },
+    ).toString()
+
+    @TypeConverter
+    fun fromJson(json: String): List<Source> {
+        val array = JSONArray(json)
+        return List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            Source(
+                kind = SourceKind.valueOf(item.getString("kind")),
+                title = item.getString("title"),
+                url = item.optString("url").ifEmpty { null },
+                locatorJson = item.optString("locator").ifEmpty { null },
+            )
+        }
+    }
+}
+
+@Database(
+    entities = [Book::class, Highlight::class, Bookmark::class, Explanation::class, ExplanationTurn::class],
+    version = 2,
+    exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
+@TypeConverters(SourceListConverter::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun books(): BookDao
     abstract fun highlights(): HighlightDao
     abstract fun bookmarks(): BookmarkDao
+    abstract fun explanations(): ExplanationDao
 
     companion object {
         fun open(context: Context): LibraryDatabase =

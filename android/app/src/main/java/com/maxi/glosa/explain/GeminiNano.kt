@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.retryWhen
 enum class NanoAvailability { Ready, Downloadable, Downloading, Unavailable }
 
 /** Gemini Nano through AICore. Inference only runs while the app is in the foreground. */
-class GeminiNano {
+class GeminiNano : LanguageModel {
     private val model by lazy { Generation.getClient() }
 
     suspend fun availability(): NanoAvailability = when (model.checkStatus()) {
@@ -28,23 +28,44 @@ class GeminiNano {
 
     suspend fun warmup() = model.warmup()
 
-    /** Emits text fragments as Gemini Nano produces them. */
-    fun stream(prompt: String): Flow<String> {
+    override suspend fun complete(prompt: String, maxOutputTokens: Int): String {
+        val request = generateContentRequest(TextPart(prompt)) {
+            temperature = 0f
+            topK = 1
+            this.maxOutputTokens = maxOutputTokens
+        }
+        var attempt = 0
+        while (true) {
+            try {
+                return model.generateContent(request).candidates.firstOrNull()?.text.orEmpty()
+            } catch (e: GenAiException) {
+                if (!isBusy(e) || attempt >= BUSY_RETRIES) throw e
+                delay(backoff(attempt++))
+            }
+        }
+    }
+
+    override fun stream(prompt: String): Flow<String> {
         val request = generateContentRequest(TextPart(prompt)) {
             temperature = 0.3f
             topK = 16
-            maxOutputTokens = MAX_OUTPUT_TOKENS
+            maxOutputTokens = ANSWER_TOKENS
         }
         return model.generateContentStream(request)
             .map { response -> response.candidates.firstOrNull()?.text.orEmpty() }
             .retryWhen { cause, attempt ->
-                val isBusy = cause is GenAiException && cause.errorCode == GenAiException.ErrorCode.BUSY
-                if (isBusy && attempt < 3) delay(500L shl attempt.toInt())
-                isBusy && attempt < 3
+                val retry = isBusy(cause) && attempt < BUSY_RETRIES
+                if (retry) delay(backoff(attempt.toInt()))
+                retry
             }
     }
 
+    private fun isBusy(cause: Throwable) = cause is GenAiException && cause.errorCode == GenAiException.ErrorCode.BUSY
+
+    private fun backoff(attempt: Int): Long = 500L shl attempt
+
     private companion object {
-        const val MAX_OUTPUT_TOKENS = 512
+        const val ANSWER_TOKENS = 512
+        const val BUSY_RETRIES = 3
     }
 }

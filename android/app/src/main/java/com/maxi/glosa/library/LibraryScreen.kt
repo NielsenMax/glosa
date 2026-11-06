@@ -21,14 +21,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -42,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +59,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.data.Book
+import com.maxi.glosa.settings.AppSettings
+import com.maxi.glosa.settings.AppSettingsSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -63,11 +69,12 @@ private val EPUB_TYPES = arrayOf("application/epub+zip", "application/octet-stre
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, onOpenReader: (Long) -> Unit) {
+fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, onOpenReader: (Long) -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<Book?>(null) }
+    var isShowingSettings by rememberSaveable { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::import)
     }
@@ -84,7 +91,15 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenReader: (Long) -> Unit) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { LargeTopAppBar(title = { Text("Biblioteca") }, scrollBehavior = scrollBehavior) },
+        topBar = {
+            LargeTopAppBar(
+                title = { Text("Biblioteca") },
+                actions = {
+                    IconButton(onClick = { isShowingSettings = true }) { Icon(Icons.Outlined.Settings, "Ajustes") }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { picker.launch(EPUB_TYPES) },
@@ -114,11 +129,15 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenReader: (Long) -> Unit) {
         }
     }
 
+    if (isShowingSettings) {
+        ModalBottomSheet(onDismissRequest = { isShowingSettings = false }) { AppSettingsSheet(settings) }
+    }
+
     pendingDelete?.let { book ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("¿Quitar «${book.title}»?") },
-            text = { Text("Se borran el libro, tus resaltados, notas y marcadores.") },
+            text = { Text("Se borran el libro, tus resaltados, notas, marcadores y explicaciones.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.delete(book)

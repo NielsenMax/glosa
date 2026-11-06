@@ -6,14 +6,15 @@ Lector de libros para Android que explica lo que no entendés, con IA en el prop
   pantalla, tablas y figuras recortadas como imágenes, recuadros laterales como bloques aparte.
 - Guarda el progreso de lectura de cada libro.
 - Permite seleccionar un término o un pasaje y pedir que lo explique, usando Gemini Nano
-  en el teléfono (sin costo ni conexión) o pasando la consulta ya armada a la app de Claude.
+  en el teléfono, que antes de responder busca en el libro, en tus notas, en Wikipedia, en
+  Wiktionary y en la web; o pasando la consulta ya armada a la app de Claude.
 
 ## Estado
 
 | Parte | Estado |
 |---|---|
 | `converter/` — conversor PDF → EPUB en Python | Funciona; probado con *Trading and Exchanges* (Harris, 2002) |
-| `android/` — app | Biblioteca, lector, resaltados, notas, marcadores, búsqueda, ajustes de lectura y "Explicar" con Gemini Nano + pase a Claude |
+| `android/` — app | Biblioteca, lector, resaltados, notas, marcadores, búsqueda, modo oscuro, "Explicar" con Gemini Nano y herramientas de búsqueda, historial de explicaciones y pase a Claude |
 
 ## App
 
@@ -25,12 +26,20 @@ anotaciones, ML Kit Prompt API para Gemini Nano.
 - **Lectura**: tocar los bordes pasa de página; tocar el centro muestra u oculta los controles.
   La posición se guarda sola.
 - **Selección**: mantener apretado sobre el texto → Explicar, Resaltar, Nota o Copiar.
-- **Explicar**: Gemini Nano responde en el teléfono, sin conexión. Se puede pedir "más simple",
-  "un ejemplo" o "traducir", repreguntar, guardar la explicación como nota o pasarle todo a la
-  app de Claude con un toque.
-- **Índice / Buscar / Notas / Marcadores** en un mismo panel. Las notas se exportan en Markdown.
-- **Ajustes**: tamaño, tema (claro, sepia, oscuro con figuras atenuadas), tipografía,
-  interlineado, márgenes, páginas o desplazamiento, alineación.
+- **Explicar**: Gemini Nano responde en el teléfono. Antes de responder decide qué buscar: el
+  término en el libro, tus notas y explicaciones anteriores, Wikipedia (las partes del artículo
+  que tienen que ver con lo que leés), Wiktionary (las acepciones que encajan y su traducción), la
+  web (con una clave gratuita de Tavily) o una cuenta. Muestra qué busca mientras lo hace y cita cada fuente; tocar
+  una fuente abre el lugar del libro o la página. Se puede pedir "más simple", "un ejemplo" o
+  "traducir", repreguntar, guardar la explicación como nota o pasarle todo a la app de Claude.
+  Detalle en `docs/adr/0005-herramientas-del-asistente.md`.
+- **Explicaciones guardadas**: cada explicación queda con sus preguntas y fuentes, marcada en
+  violeta en el texto. Tocar la marca o elegirla en el panel la reabre para seguir preguntando.
+- **Índice / Buscar / Notas / Explicaciones / Marcadores** en un mismo panel. Las notas se
+  exportan en Markdown.
+- **Apariencia**: automático (sigue al teléfono), claro, sepia u oscuro, para la biblioteca y las
+  páginas a la vez. Se cambia desde Ajustes en la biblioteca o desde el panel de letra al leer.
+- **Lectura**: tamaño, tipografía, interlineado, márgenes, páginas o desplazamiento, alineación.
 
 ```bash
 cd android
@@ -68,7 +77,8 @@ Ver las decisiones en `docs/adr/`. En orden:
 
 1. ~~App que abre EPUB y guarda el progreso por libro.~~
 2. ~~"Explicar" sobre una selección con Gemini Nano y pase a Claude.~~
-3. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
-4. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
-5. Glosario por libro con los términos ya explicados y tarjetas de repaso.
-6. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.
+3. ~~Herramientas de búsqueda para el asistente, historial de explicaciones y modo oscuro.~~
+4. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
+5. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
+6. Glosario por libro con los términos ya explicados y tarjetas de repaso.
+7. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.

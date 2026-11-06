@@ -26,7 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,17 +50,24 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.data.Bookmark
+import com.maxi.glosa.data.ExplanationThread
 import com.maxi.glosa.data.Highlight
 import org.readium.r2.shared.publication.Locator
 import kotlin.math.roundToInt
 
-private enum class ContentsTab(val label: String) { Toc("Índice"), Search("Buscar"), Highlights("Notas"), Bookmarks("Marcadores") }
+private enum class ContentsTab(val label: String) {
+    Toc("Índice"),
+    Search("Buscar"),
+    Highlights("Notas"),
+    Explanations("Explicaciones"),
+    Bookmarks("Marcadores"),
+}
 
 @Composable
 fun ContentsSheet(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f)) {
-        PrimaryTabRow(selectedTabIndex = tab) {
+        PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
             ContentsTab.entries.forEachIndexed { index, entry ->
                 Tab(selected = tab == index, onClick = { tab = index }, text = { Text(entry.label) })
             }
@@ -69,6 +76,7 @@ fun ContentsSheet(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
             ContentsTab.Toc -> TocList(viewModel, actions)
             ContentsTab.Search -> SearchPanel(viewModel, actions)
             ContentsTab.Highlights -> HighlightList(viewModel, actions)
+            ContentsTab.Explanations -> ExplanationList(viewModel)
             ContentsTab.Bookmarks -> BookmarkList(viewModel, actions)
         }
     }
@@ -211,6 +219,67 @@ private fun HighlightRow(highlight: Highlight, onOpen: () -> Unit, onEdit: () ->
     }
     HorizontalDivider()
 }
+
+@Composable
+private fun ExplanationList(viewModel: ReaderViewModel) {
+    val threads by viewModel.explanations.collectAsStateWithLifecycle()
+    if (threads.isEmpty()) {
+        EmptyHint("Las explicaciones que pidas quedan guardadas acá, y marcadas en violeta en el texto, para retomarlas cuando quieras.")
+        return
+    }
+    LazyColumn {
+        items(threads, key = { it.explanation.id }) { thread ->
+            ExplanationRow(
+                thread = thread,
+                onOpen = { viewModel.openExplanation(thread.explanation.id) },
+                onDelete = { viewModel.deleteExplanation(thread.explanation.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExplanationRow(thread: ExplanationThread, onOpen: () -> Unit, onDelete: () -> Unit) {
+    val turns = thread.turns.sortedBy { it.createdAt }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 16.dp, top = 10.dp, bottom = 10.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "“${thread.explanation.selectedText}”",
+                style = MaterialTheme.typography.bodyMedium,
+                fontStyle = FontStyle.Italic,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            turns.firstOrNull()?.let {
+                Text(
+                    plainPreview(it.answer),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            Text(
+                listOf(
+                    positionLabel(thread.explanation.chapter, thread.explanation.progression),
+                    if (turns.size == 1) "1 respuesta" else "${turns.size} respuestas",
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, "Borrar explicación") }
+    }
+    HorizontalDivider()
+}
+
+private val MARKDOWN_MARKS = Regex("\\*\\*|(?m)^\\s*[*\\-•#]+\\s+")
+
+private fun plainPreview(answer: String): String = answer.replace(MARKDOWN_MARKS, "").replace(Regex("\\s+"), " ").trim()
 
 @Composable
 private fun BookmarkList(viewModel: ReaderViewModel, actions: ReaderChromeActions) {

@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
 import androidx.core.content.IntentCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.library.LibraryScreen
 import com.maxi.glosa.library.LibraryViewModel
 import com.maxi.glosa.reader.ReaderActivity
@@ -20,8 +22,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            GlosaTheme {
-                LibraryScreen(viewModel, onOpenReader = { startActivity(ReaderActivity.intent(this, it)) })
+            val appearance by glosaApp.settings.appearance.collectAsStateWithLifecycle()
+            GlosaTheme(appearance) {
+                LibraryScreen(viewModel, glosaApp.settings, onOpenReader = { startActivity(ReaderActivity.intent(this, it)) })
             }
         }
         if (savedInstanceState == null) openSharedBook(intent)

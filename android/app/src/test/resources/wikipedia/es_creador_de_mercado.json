@@ -1,0 +1,28 @@
+{
+  "batchcomplete": true,
+  "continue": {
+    "gsroffset": 1,
+    "continue": "gsroffset||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 6291714,
+        "ns": 0,
+        "title": "Creador del mercado",
+        "index": 1,
+        "extract": "Los creadores de mercado (también denominados animadores de mercado, administradores de mercado, agentes de mercado o sostenedores de mercado, en inglés: Market makers) son entidades (empresas o personas) designadas por los rectores de un mercado financiero, y que tienen como objetivo garantizar la liquidez de las transacciones en un mercado secundario, y suavizar las fluctuaciones de precios, con lo que cumplen una función de catalización o acomodación entre oferta y demanda. Esta figura puede existir en cualquier clase de mercado financiero, sea de renta fija, de renta variable, de derivados, o de divisas, y allí se suelen mezclar las operaciones al menudeo con las de escalas mayores.\nEn los mercados que funcionan dirigidos por precios, los creadores de mercado están obligados a ofrecer un precio de venta al que están dispuestos a vender los activos y un precio de compra al que están dispuestos a comprarlos, otorgando liquidez y fluidez al mercado. Los inversores siempre pueden encontrar una contrapartida en el creador del mercado, y este obtiene su beneficio por la diferencia entre los precios de venta y compra. Para realizar esta labor, los creadores de mercado mantienen en su cartera un stock de títulos que ofrecen en caso de que en un determinado momento no exista contraparte.​\nLa diferencia entre un creador de mercado y un corredor de mercado, es que el primero obtiene sus principales ingresos por la diferencia entre compra y venta de los productos financieros que maneja, mientras que el segundo lo obtiene generalmente cobrando una comisión a sus clientes por las ventas o compras realizadas. Además, este último trabaja generalmente con una cartera relativamente estable de clientes.\nSe supone que algunos creadores de mercado buscan estabilizar los precios, aunque no todos tienen este objetivo ya que algunos de ellos especulan buscando una ganancia grande y rápida, lo que tiene como consecuencia la desestabilización de los precios.\n\n\n== Referencias ==\n\n\n== Véase también ==\nBolsa de Valores\nAgente de bolsa\n\n\n== Enlaces externos ==\nTeoría y práctica de la bolsa",
+        "contentmodel": "wikitext",
+        "pagelanguage": "es",
+        "pagelanguagehtmlcode": "es",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-14T20:04:33Z",
+        "lastrevid": 174075988,
+        "length": 2924,
+        "fullurl": "https://es.wikipedia.org/wiki/Creador_del_mercado",
+        "editurl": "https://es.wikipedia.org/w/index.php?title=Creador_del_mercado&action=edit",
+        "canonicalurl": "https://es.wikipedia.org/wiki/Creador_del_mercado"
+      }
+    ]
+  }
+}

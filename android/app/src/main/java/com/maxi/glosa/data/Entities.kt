@@ -1,9 +1,11 @@
 package com.maxi.glosa.data
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 @Entity(tableName = "books")
 data class Book(
@@ -57,3 +59,45 @@ data class Bookmark(
     val progression: Double,
     val createdAt: Long,
 )
+
+/** A passage the reader asked about, with every question and answer that followed. */
+@Entity(
+    tableName = "explanations",
+    foreignKeys = [ForeignKey(Book::class, ["id"], ["bookId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("bookId")],
+)
+data class Explanation(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: Long,
+    val locatorJson: String,
+    val selectedText: String,
+    val chapter: String?,
+    val progression: Double,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "explanation_turns",
+    foreignKeys = [ForeignKey(Explanation::class, ["id"], ["explanationId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("explanationId")],
+)
+data class ExplanationTurn(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val explanationId: Long,
+    val question: String,
+    val answer: String,
+    /** In the order the answer cites them as [1], [2]… */
+    val sources: List<Source>,
+    val createdAt: Long,
+)
+
+data class ExplanationThread(
+    @Embedded val explanation: Explanation,
+    @Relation(parentColumn = "id", entityColumn = "explanationId") val turns: List<ExplanationTurn>,
+)
+
+enum class SourceKind { Book, Wikipedia, Dictionary, Web, Notes, Calculator }
+
+/** Where part of an answer came from: a place in the book (`locatorJson`) or a page on the web (`url`). */
+data class Source(val kind: SourceKind, val title: String, val url: String? = null, val locatorJson: String? = null)

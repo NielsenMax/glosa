@@ -4,18 +4,25 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.genai.common.DownloadStatus
-import com.google.mlkit.genai.common.GenAiException
 import com.maxi.glosa.books.ReaderSession
 import com.maxi.glosa.data.Bookmark
+import com.maxi.glosa.data.Explanation
+import com.maxi.glosa.data.ExplanationThread
 import com.maxi.glosa.data.Highlight
 import com.maxi.glosa.data.HighlightColor
-import com.maxi.glosa.explain.Exchange
+import com.maxi.glosa.explain.ExplainAgent
 import com.maxi.glosa.explain.ExplainMode
 import com.maxi.glosa.explain.ExplainPrompts
-import com.maxi.glosa.explain.NanoAvailability
 import com.maxi.glosa.explain.Passage
+import com.maxi.glosa.explain.Tool
+import com.maxi.glosa.explain.tools.BookSearchTool
+import com.maxi.glosa.explain.tools.CalculatorTool
+import com.maxi.glosa.explain.tools.DictionaryTool
+import com.maxi.glosa.explain.tools.NotesTool
+import com.maxi.glosa.explain.tools.WebSearchTool
+import com.maxi.glosa.explain.tools.WikipediaTool
 import com.maxi.glosa.glosaApp
+import com.maxi.glosa.settings.Appearance
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,19 +58,6 @@ sealed interface ReaderSheet {
     data class HighlightDetail(val highlightId: Long) : ReaderSheet
 }
 
-data class ExplainUiState(
-    val passage: Passage,
-    val locator: Locator,
-    val highlightId: Long? = null,
-    val exchanges: List<Exchange> = emptyList(),
-    val pendingQuestion: String? = null,
-    val streamingAnswer: String = "",
-    val isGenerating: Boolean = false,
-    val downloadedBytes: Long? = null,
-    val error: String? = null,
-    val isSavedAsNote: Boolean = false,
-)
-
 class ReaderViewModel(application: Application, savedState: SavedStateHandle) : AndroidViewModel(application) {
     private val app = application.glosaApp
     private val bookId: Long = checkNotNull(savedState[ReaderActivity.EXTRA_BOOK_ID]) { "ReaderActivity needs a book id" }
@@ -80,12 +75,20 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     private val _sheet = MutableStateFlow<ReaderSheet?>(null)
     val sheet: StateFlow<ReaderSheet?> = _sheet.asStateFlow()
 
-    private val _explain = MutableStateFlow<ExplainUiState?>(null)
-    val explain: StateFlow<ExplainUiState?> = _explain.asStateFlow()
+    val appearance: StateFlow<Appearance> = app.settings.appearance
+    val canSearchWeb: StateFlow<Boolean> = app.settings.webSearchKey.map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, app.settings.webSearchKey.value != null)
+
+    val explainer = ExplainController(viewModelScope, bookId, app.geminiNano, app.database.explanations()) {
+        ExplainAgent(app.geminiNano, tools())
+    }
+    val explain: StateFlow<ExplainUiState?> = explainer.state
 
     val highlights: StateFlow<List<Highlight>> = app.database.highlights().observeForBook(bookId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val bookmarks: StateFlow<List<Bookmark>> = app.database.bookmarks().observeForBook(bookId)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val explanations: StateFlow<List<ExplanationThread>> = app.database.explanations().observeForBook(bookId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val currentBookmark: StateFlow<Bookmark?> = combine(currentLocator, bookmarks) { locator, marks ->
@@ -96,7 +99,6 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     val search: StateFlow<SearchState> = _search.asStateFlow()
 
     private var savePositionJob: Job? = null
-    private var generation: Job? = null
     private var searchJob: Job? = null
 
     fun search(query: String) {
@@ -153,11 +155,13 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     }
 
     fun dismissSheet() {
-        if (_sheet.value == ReaderSheet.Explain) generation?.cancel()
+        if (_sheet.value == ReaderSheet.Explain) explainer.cancel()
         _sheet.value = null
     }
 
     fun updatePreferences(transform: (EpubPreferences) -> EpubPreferences) = app.readerPreferences.update(transform)
+
+    fun setAppearance(appearance: Appearance) = app.settings.setAppearance(appearance)
 
     fun addHighlight(locator: Locator, color: HighlightColor) = viewModelScope.launch {
         insertHighlight(locator, color, note = null)
@@ -233,113 +237,71 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
 
     fun deleteBookmark(id: Long) = viewModelScope.launch { app.database.bookmarks().delete(id) }
 
-    fun passageFor(locator: Locator): Passage = Passage(
+    private fun passageFor(locator: Locator): Passage = Passage(
         bookTitle = session.book.title,
         author = session.book.author,
+        language = session.publication.metadata.languages.firstOrNull(),
         chapter = locator.title ?: currentLocator.value?.title,
         before = locator.text.before.orEmpty(),
         selected = locator.text.highlight.orEmpty(),
         after = locator.text.after.orEmpty(),
     )
 
+    private fun tools(): List<Tool> = listOfNotNull(
+        BookSearchTool(session.publication),
+        WikipediaTool(app.http, wikipediaLanguages()),
+        DictionaryTool(app.http, bookLanguage()),
+        app.settings.webSearchKey.value?.let { WebSearchTool(app.http, it) },
+        NotesTool(bookId, app.database.highlights(), app.database.explanations()),
+        CalculatorTool,
+    )
+
+    private fun bookLanguage(): String =
+        session.publication.metadata.languages.firstOrNull()?.substringBefore('-')?.lowercase() ?: "en"
+
+    private fun wikipediaLanguages(): List<String> = listOf(bookLanguage(), "es").distinct()
+
     fun explain(locator: Locator, highlightId: Long? = null) {
-        val passage = passageFor(locator)
-        _explain.value = ExplainUiState(passage = passage, locator = locator, highlightId = highlightId)
+        explainer.start(passageFor(locator), locator, highlightId)
         _sheet.value = ReaderSheet.Explain
-        ask(ExplainPrompts.question(passage, ExplainMode.Explain), followUp = null, mode = ExplainMode.Explain)
     }
 
-    fun explainAgain(mode: ExplainMode) {
-        val state = _explain.value ?: return
-        ask(ExplainPrompts.question(state.passage, mode), followUp = null, mode = mode)
+    fun openExplanation(id: Long) = viewModelScope.launch {
+        val thread = app.database.explanations().get(id) ?: return@launch
+        val locator = thread.explanation.locator() ?: return@launch
+        explainer.resume(thread, passageFor(locator), locator)
+        _sheet.value = ReaderSheet.Explain
     }
 
-    fun askFollowUp(question: String) {
-        if (question.isBlank()) return
-        ask(question.trim(), followUp = question.trim(), mode = ExplainMode.Explain)
-    }
+    fun deleteExplanation(id: Long) = viewModelScope.launch { app.database.explanations().delete(id) }
+
+    fun explainAgain(mode: ExplainMode) = explainer.explainAgain(mode)
+
+    fun askFollowUp(question: String) = explainer.askFollowUp(question)
 
     fun claudeHandoffText(): String? {
-        val state = _explain.value ?: return null
-        return ExplainPrompts.forClaude(state.passage, state.exchanges, followUp = null)
+        val state = explain.value ?: return null
+        return ExplainPrompts.forClaude(state.passage, state.turns, followUp = null)
     }
 
     fun saveExplanationAsNote() = viewModelScope.launch {
-        val state = _explain.value ?: return@launch
-        val note = state.exchanges.joinToString("\n\n") { "${it.question}\n${it.answer}" }
+        val state = explain.value ?: return@launch
+        val note = state.turns.joinToString("\n\n") { "${it.question}\n${it.answer}" }
         if (note.isBlank()) return@launch
         val highlightId = state.highlightId
         if (highlightId != null) {
             val highlight = app.database.highlights().get(highlightId) ?: return@launch
             val merged = listOfNotNull(highlight.note, note).joinToString("\n\n")
             app.database.highlights().update(highlight.copy(note = merged))
+            explainer.markSavedAsNote(highlightId)
         } else {
-            val id = insertHighlight(state.locator, HighlightColor.Blue, note)
-            _explain.update { it?.copy(highlightId = id) }
+            explainer.markSavedAsNote(insertHighlight(state.locator, HighlightColor.Blue, note))
         }
-        _explain.update { it?.copy(isSavedAsNote = true) }
-    }
-
-    private fun ask(question: String, followUp: String?, mode: ExplainMode) {
-        generation?.cancel()
-        generation = viewModelScope.launch {
-            val start = _explain.value ?: return@launch
-            val prompt = ExplainPrompts.forNano(start.passage, mode, start.exchanges, followUp)
-            _explain.update {
-                it?.copy(pendingQuestion = question, streamingAnswer = "", isGenerating = true, error = null, isSavedAsNote = false)
-            }
-            try {
-                ensureModelReady()
-                app.geminiNano.stream(prompt).collect { piece ->
-                    _explain.update { it?.copy(streamingAnswer = it.streamingAnswer + piece, downloadedBytes = null) }
-                }
-                _explain.update {
-                    it?.copy(
-                        exchanges = it.exchanges + Exchange(question, it.streamingAnswer.trim()),
-                        pendingQuestion = null,
-                        streamingAnswer = "",
-                        isGenerating = false,
-                    )
-                }
-            } catch (e: GenAiException) {
-                _explain.update { it?.copy(isGenerating = false, error = describe(e)) }
-            } catch (e: NanoUnavailableException) {
-                _explain.update { it?.copy(isGenerating = false, error = e.message) }
-            }
-        }
-    }
-
-    private suspend fun ensureModelReady() {
-        when (app.geminiNano.availability()) {
-            NanoAvailability.Ready -> Unit
-            NanoAvailability.Unavailable -> throw NanoUnavailableException(
-                "Gemini Nano no está disponible en este teléfono por ahora. Podés preguntarle a Claude.",
-            )
-            NanoAvailability.Downloadable, NanoAvailability.Downloading -> app.geminiNano.download().collect { status ->
-                when (status) {
-                    is DownloadStatus.DownloadProgress -> _explain.update { it?.copy(downloadedBytes = status.totalBytesDownloaded) }
-                    is DownloadStatus.DownloadFailed -> throw status.e
-                    else -> Unit
-                }
-            }
-        }
-    }
-
-    private fun describe(e: GenAiException): String = when (e.errorCode) {
-        GenAiException.ErrorCode.PER_APP_BATTERY_USE_QUOTA_EXCEEDED ->
-            "Llegaste al límite de uso de Gemini Nano por hoy. Podés seguir con Claude."
-        GenAiException.ErrorCode.REQUEST_TOO_LARGE -> "La selección es demasiado larga para el modelo local. Probá con menos texto."
-        GenAiException.ErrorCode.BUSY -> "Gemini Nano está ocupado. Probá de nuevo en unos segundos."
-        GenAiException.ErrorCode.NEEDS_SYSTEM_UPDATE -> "Gemini Nano necesita una actualización del sistema (AICore)."
-        GenAiException.ErrorCode.NOT_ENOUGH_DISK_SPACE -> "No hay espacio para descargar Gemini Nano."
-        else -> "Gemini Nano falló (código ${e.errorCode}): ${e.message}"
     }
 
     override fun onCleared() {
         app.openBooks.close(bookId)
     }
-
-    private class NanoUnavailableException(message: String) : Exception(message)
 
     private companion object {
         const val MAX_SEARCH_HITS = 300
@@ -353,6 +315,8 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
 fun Highlight.locator(): Locator? = Locator.fromJSON(JSONObject(locatorJson))
 
 fun Bookmark.locator(): Locator? = Locator.fromJSON(JSONObject(locatorJson))
+
+fun Explanation.locator(): Locator? = Locator.fromJSON(JSONObject(locatorJson))
 
 private fun Bookmark.isOnSamePage(here: Locator): Boolean {
     val total = here.locations.totalProgression ?: return false
