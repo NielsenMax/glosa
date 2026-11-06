@@ -18,5 +18,6 @@ libro.
 
 - El `Locator` sobrevive a cambios de fuente y de tamaño, cosa que una página o un offset no logran.
 - La selección de texto de Readium alimenta la acción "Explicar" (ADR 4).
-- La base queda incluida en Auto Backup de Android, así que el progreso se recupera al
-  reinstalar o cambiar de teléfono sin un servidor propio.
+- La base y las portadas quedan en Auto Backup de Android; los EPUB no, porque superan el límite
+  de 25 MB del backup en la nube. Al reinstalar o cambiar de teléfono hay que volver a agregar
+  los libros: el importador reconoce título y autor y los reconecta con su progreso y sus notas.

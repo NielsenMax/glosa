@@ -365,7 +365,8 @@ def is_figure_page(regions):
 
 
 def extract_drop_cap(lines):
-    caps = [l for l in lines if len(l.text) == 1 and l.text.isalpha() and l.size > 14]
+    """A drop cap spans two or three lines; OCR sizes a narrow one like "I" small, so its height decides."""
+    caps = [l for l in lines if len(l.text) == 1 and l.text.isalpha() and (l.size > 14 or l.y1 - l.y0 > 26)]
     if not caps:
         return lines, None
     cap = caps[0]
@@ -373,8 +374,21 @@ def extract_drop_cap(lines):
     beside = [l for l in rest if l.x0 > cap.x1 - 2 and cap.y0 - 6 < l.y0 < cap.y1]
     if beside:
         first = min(beside, key=lambda l: l.y0)
-        first.runs = [Run(cap.text, False, False)] + first.runs
+        style = first.runs[0]
+        first.runs = [Run(cap.text.upper(), style.italic, style.bold, style.size)] + first.runs
     return rest, (cap, beside)
+
+
+def restore_initial(row, vocabulary):
+    """Puts back a drop cap the OCR missed, choosing the capital that forms the book's most frequent word."""
+    first_run = row.lines[0].runs[0]
+    word = re.match(r"[a-z]+", first_run.text.lstrip())
+    if word is None:
+        return
+    candidates = {letter: vocabulary[(letter + word.group()).lower()] for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
+    letter, count = max(candidates.items(), key=lambda item: item[1])
+    if count > 0:
+        first_run.text = letter + first_run.text.lstrip()
 
 
 def absorb_figure_labels(items):
@@ -574,6 +588,10 @@ class Book:
             self.defer(self.crop(page, page_number, 0, 45, page.rect.width, page.rect.height - 35))
             return
         beside_cap = set(id(l) for l in drop_cap[1]) if drop_cap else set()
+        if opens_section and drop_cap is None:
+            first_text = next((b for kind, b in main_region.items if kind == "band" and b.kind == "text"), None)
+            if first_text is not None:
+                restore_initial(first_text.rows[0], self.vocabulary)
         self.add_region(page, page_number, main_region, beside_cap, is_margin=False)
         self.add_region(page, page_number, side_region, beside_cap, is_margin=True)
 

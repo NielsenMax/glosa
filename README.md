@@ -13,7 +13,34 @@ Lector de libros para Android con explicaciones de IA en el dispositivo.
 | Parte | Estado |
 |---|---|
 | `converter/` — conversor PDF → EPUB en Python | Funciona; probado con *Trading and Exchanges* (Harris, 2002) |
-| `android/` — app | Por empezar: falta instalar JDK y Android SDK en la Mac |
+| `android/` — app | Biblioteca, lector, resaltados, notas, marcadores, búsqueda, ajustes de lectura y "Explicar" con Gemini Nano + pase a Claude |
+
+## App
+
+Kotlin + Jetpack Compose, Readium Kotlin Toolkit para leer EPUB, Room para la biblioteca y las
+anotaciones, ML Kit Prompt API para Gemini Nano.
+
+- **Biblioteca**: portadas, porcentaje leído, se ordena por último abierto. Mantener apretado un
+  libro para quitarlo.
+- **Lectura**: tocar los bordes pasa de página; tocar el centro muestra u oculta los controles.
+  La posición se guarda sola.
+- **Selección**: mantener apretado sobre el texto → Explicar, Resaltar, Nota o Copiar.
+- **Explicar**: Gemini Nano responde en el teléfono, sin conexión. Se puede pedir "más simple",
+  "un ejemplo" o "traducir", repreguntar, guardar la explicación como nota o pasarle todo a la
+  app de Claude con un toque.
+- **Índice / Buscar / Notas / Marcadores** en un mismo panel. Las notas se exportan en Markdown.
+- **Ajustes**: tamaño, tema (claro, sepia, oscuro con figuras atenuadas), tipografía,
+  interlineado, márgenes, páginas o desplazamiento, alineación.
+
+```bash
+cd android
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+./gradlew testDebugUnitTest assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+La release se firma con la clave de debug: sirve para instalar en el teléfono propio, no para
+publicar.
 
 ## Conversor
 
@@ -39,8 +66,9 @@ sangría es francesa (bibliografía). El resto se deduce de la geometría y las 
 
 Ver las decisiones en `docs/adr/`. En orden:
 
-1. Esqueleto Android (Kotlin + Compose) que abre EPUB y guarda el progreso por libro.
-2. "Explicar" sobre una selección: Gemini Nano vía ML Kit Prompt API, con la opción de
-   compartir la consulta formateada a la app de Claude.
+1. ~~App que abre EPUB y guarda el progreso por libro.~~
+2. ~~"Explicar" sobre una selección con Gemini Nano y pase a Claude.~~
 3. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
-4. Glosario por libro con los términos ya explicados.
+4. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
+5. Glosario por libro con los términos ya explicados y tarjetas de repaso.
+6. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.
