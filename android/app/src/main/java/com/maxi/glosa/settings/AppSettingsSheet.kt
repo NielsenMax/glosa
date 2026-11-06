@@ -28,6 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maxi.glosa.update.UpdateSettingsRow
+import com.maxi.glosa.update.Updater
 
 @Composable
 fun AppearancePicker(selected: Appearance, onSelect: (Appearance) -> Unit) {
@@ -43,7 +45,7 @@ fun AppearancePicker(selected: Appearance, onSelect: (Appearance) -> Unit) {
 }
 
 @Composable
-fun AppSettingsSheet(settings: AppSettings) {
+fun AppSettingsSheet(settings: AppSettings, updater: Updater) {
     val appearance by settings.appearance.collectAsStateWithLifecycle()
     val savedKey by settings.webSearchKey.collectAsStateWithLifecycle()
     var key by rememberSaveable { mutableStateOf(savedKey.orEmpty()) }
@@ -87,5 +89,13 @@ fun AppSettingsSheet(settings: AppSettings) {
                 Text(if (key.isBlank() && savedKey != null) "Quitar clave" else "Guardar")
             }
         }
+
+        Text("Actualizaciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+        UpdateSettingsRow(updater, installedVersionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty())
+        Text(
+            "Glosa busca versiones nuevas en GitHub cada 6 horas, al abrir la biblioteca.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

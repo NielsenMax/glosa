@@ -4,6 +4,14 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+/** Every push to main publishes a release, so the commit count orders the versions the in-app updater compares. */
+val commitCount: Int = providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+    .standardOutput.asText.get().trim().toInt()
+
+/** The release key stays out of the repo: `glosa.*` in ~/.gradle/gradle.properties locally, `GLOSA_*` variables in CI. */
+fun signingValue(property: String): String? =
+    providers.gradleProperty(property).orNull ?: providers.environmentVariable(property.uppercase().replace('.', '_')).orNull
+
 android {
     namespace = "com.maxi.glosa"
     compileSdk = 37
@@ -12,8 +20,20 @@ android {
         applicationId = "com.maxi.glosa"
         minSdk = 31
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = commitCount
+        versionName = "0.3.$commitCount"
+    }
+
+    signingConfigs {
+        val keystore = signingValue("glosa.keystore")
+        if (keystore != null) {
+            create("release") {
+                storeFile = file(keystore)
+                storePassword = signingValue("glosa.keystore.password")
+                keyAlias = signingValue("glosa.key.alias") ?: "glosa"
+                keyPassword = storePassword
+            }
+        }
     }
 
     buildTypes {
@@ -21,7 +41,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            // Without the key the release comes out unsigned (app-release-unsigned.apk), which anyone cloning can still build.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

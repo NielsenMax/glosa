@@ -41,15 +41,25 @@ anotaciones, ML Kit Prompt API para Gemini Nano.
   páginas a la vez. Se cambia desde Ajustes en la biblioteca o desde el panel de letra al leer.
 - **Lectura**: tamaño, tipografía, interlineado, márgenes, páginas o desplazamiento, alineación.
 
+### Instalar y actualizar
+
+La última versión está en [Releases](https://github.com/NielsenMax/glosa/releases/latest):
+descargar `Glosa.apk` en el teléfono e instalarlo. Desde ahí, Glosa avisa sola cuando hay una
+versión nueva y se actualiza con un toque (la primera vez Android pide permiso para que instale
+apps). Cada push a `main` publica una release; detalle en
+`docs/adr/0006-actualizaciones-desde-github.md`.
+
+### Compilar
+
 ```bash
 cd android
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ./gradlew testDebugUnitTest assembleRelease
-adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-La release se firma con la clave de debug: sirve para instalar en el teléfono propio, no para
-publicar.
+Para firmar la release, `~/.gradle/gradle.properties` necesita `glosa.keystore`,
+`glosa.keystore.password` y `glosa.key.alias`; sin eso sale `app-release-unsigned.apk`. Una
+versión firmada con otra clave no se puede instalar encima de la publicada.
 
 ## Conversor
 
@@ -78,7 +88,8 @@ Ver las decisiones en `docs/adr/`. En orden:
 1. ~~App que abre EPUB y guarda el progreso por libro.~~
 2. ~~"Explicar" sobre una selección con Gemini Nano y pase a Claude.~~
 3. ~~Herramientas de búsqueda para el asistente, historial de explicaciones y modo oscuro.~~
-4. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
-5. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
-6. Glosario por libro con los términos ya explicados y tarjetas de repaso.
-7. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.
+4. ~~Actualizaciones automáticas desde GitHub Releases.~~
+5. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
+6. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
+7. Glosario por libro con los términos ya explicados y tarjetas de repaso.
+8. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.

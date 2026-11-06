@@ -61,6 +61,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.data.Book
 import com.maxi.glosa.settings.AppSettings
 import com.maxi.glosa.settings.AppSettingsSheet
+import com.maxi.glosa.update.UpdateBanner
+import com.maxi.glosa.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -69,7 +71,7 @@ private val EPUB_TYPES = arrayOf("application/epub+zip", "application/octet-stre
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, onOpenReader: (Long) -> Unit) {
+fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: Updater, onOpenReader: (Long) -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -109,28 +111,31 @@ fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, onOpenRead
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            val list = books
-            when {
-                list == null -> Unit
-                list.isEmpty() -> EmptyLibrary()
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(150.dp),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    items(list, key = { it.id }) { book ->
-                        BookCard(book, onOpen = { viewModel.open(book) }, onLongPress = { pendingDelete = book })
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            UpdateBanner(updater)
+            Box(Modifier.fillMaxSize()) {
+                val list = books
+                when {
+                    list == null -> Unit
+                    list.isEmpty() -> EmptyLibrary()
+                    else -> LazyVerticalGrid(
+                        columns = GridCells.Adaptive(150.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        items(list, key = { it.id }) { book ->
+                            BookCard(book, onOpen = { viewModel.open(book) }, onLongPress = { pendingDelete = book })
+                        }
                     }
                 }
+                if (isBusy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
             }
-            if (isBusy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
         }
     }
 
     if (isShowingSettings) {
-        ModalBottomSheet(onDismissRequest = { isShowingSettings = false }) { AppSettingsSheet(settings) }
+        ModalBottomSheet(onDismissRequest = { isShowingSettings = false }) { AppSettingsSheet(settings, updater) }
     }
 
     pendingDelete?.let { book ->

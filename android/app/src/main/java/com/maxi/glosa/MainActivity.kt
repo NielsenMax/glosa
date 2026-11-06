@@ -24,10 +24,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appearance by glosaApp.settings.appearance.collectAsStateWithLifecycle()
             GlosaTheme(appearance) {
-                LibraryScreen(viewModel, glosaApp.settings, onOpenReader = { startActivity(ReaderActivity.intent(this, it)) })
+                LibraryScreen(
+                    viewModel = viewModel,
+                    settings = glosaApp.settings,
+                    updater = glosaApp.updater,
+                    onOpenReader = { startActivity(ReaderActivity.intent(this, it)) },
+                )
             }
         }
         if (savedInstanceState == null) openSharedBook(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        glosaApp.updater.checkIfDue()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        glosaApp.updater.onPermissionMaybeGranted()
     }
 
     override fun onNewIntent(intent: Intent) {

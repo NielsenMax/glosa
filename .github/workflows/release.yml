@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/release.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The version code is the commit count, so the whole history is needed.
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Restore the release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.GLOSA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Missing secret GLOSA_KEYSTORE_BASE64"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/glosa-release.jks"
+
+      - name: Test and build
+        env:
+          GLOSA_KEYSTORE: ${{ runner.temp }}/glosa-release.jks
+          GLOSA_KEYSTORE_PASSWORD: ${{ secrets.GLOSA_KEYSTORE_PASSWORD }}
+          GLOSA_KEY_ALIAS: glosa
+        run: ./gradlew testDebugUnitTest assembleRelease
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Glosa.apk"
+          git log -1 --format=%B > "$RUNNER_TEMP/notes.md"
+          gh release create "v$version" "$RUNNER_TEMP/Glosa.apk" --title "Glosa $version" --notes-file "$RUNNER_TEMP/notes.md"

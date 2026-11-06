@@ -10,6 +10,12 @@ import com.maxi.glosa.explain.GeminiNano
 import com.maxi.glosa.net.HttpJson
 import com.maxi.glosa.reader.ReaderPreferencesStore
 import com.maxi.glosa.settings.AppSettings
+import com.maxi.glosa.update.ApkInstaller
+import com.maxi.glosa.update.ReleaseFeed
+import com.maxi.glosa.update.Updater
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class GlosaApp : Application() {
     val database by lazy { LibraryDatabase.open(this) }
@@ -25,6 +31,16 @@ class GlosaApp : Application() {
     val http by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName
         HttpJson(userAgent = "Glosa/$version (https://github.com/NielsenMax/glosa)")
+    }
+
+    val updater by lazy {
+        Updater(
+            feed = ReleaseFeed(http),
+            installer = ApkInstaller(this),
+            installedVersionCode = packageManager.getPackageInfo(packageName, 0).longVersionCode,
+            prefs = getSharedPreferences("updates", MODE_PRIVATE),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+        )
     }
 
     override fun onCreate() {
