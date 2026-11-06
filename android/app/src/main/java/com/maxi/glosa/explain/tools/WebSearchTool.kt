@@ -6,6 +6,8 @@ import com.maxi.glosa.explain.Finding
 import com.maxi.glosa.explain.LookupContext
 import com.maxi.glosa.explain.Tool
 import com.maxi.glosa.explain.ToolException
+import com.maxi.glosa.net.HttpJson
+import com.maxi.glosa.net.HttpStatusException
 import org.json.JSONObject
 
 /** Web search through Tavily, whose results already come as short text excerpts a small model can read. */

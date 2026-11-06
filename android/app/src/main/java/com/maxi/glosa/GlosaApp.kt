@@ -7,7 +7,7 @@ import com.maxi.glosa.books.BookOpener
 import com.maxi.glosa.books.OpenBooks
 import com.maxi.glosa.data.LibraryDatabase
 import com.maxi.glosa.explain.GeminiNano
-import com.maxi.glosa.explain.tools.HttpJson
+import com.maxi.glosa.net.HttpJson
 import com.maxi.glosa.reader.ReaderPreferencesStore
 import com.maxi.glosa.settings.AppSettings
 

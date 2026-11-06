@@ -1,18 +1,20 @@
-package com.maxi.glosa.explain.tools
+package com.maxi.glosa.net
 
-import com.maxi.glosa.explain.ToolException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONException
-import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.UnknownHostException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONException
+import org.json.JSONObject
 
-class HttpStatusException(val status: Int) : ToolException("el servidor respondió $status")
+/** A request that could not be completed, with a message the reader can understand. */
+open class NetworkException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-/** Minimal JSON over HTTPS for the lookup tools; every failure surfaces as a [ToolException]. */
+class HttpStatusException(val status: Int) : NetworkException("el servidor respondió $status")
+
+/** Minimal JSON over HTTPS; every failure surfaces as a [NetworkException]. */
 class HttpJson(private val userAgent: String) {
     suspend fun get(url: String, headers: Map<String, String> = emptyMap()): JSONObject = request(url, headers, body = null)
 
@@ -38,11 +40,11 @@ class HttpJson(private val userAgent: String) {
                 if (status !in 200..299) throw HttpStatusException(status)
                 JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
             } catch (e: UnknownHostException) {
-                throw ToolException("no hay conexión a internet", e)
+                throw NetworkException("no hay conexión a internet", e)
             } catch (e: IOException) {
-                throw ToolException("falló la conexión (${e.message})", e)
+                throw NetworkException("falló la conexión (${e.message})", e)
             } catch (e: JSONException) {
-                throw ToolException("la respuesta no se pudo leer", e)
+                throw NetworkException("la respuesta no se pudo leer", e)
             } finally {
                 connection.disconnect()
             }

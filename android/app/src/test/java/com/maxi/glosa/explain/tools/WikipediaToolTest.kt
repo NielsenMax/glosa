@@ -3,7 +3,8 @@ package com.maxi.glosa.explain.tools
 import com.maxi.glosa.data.Source
 import com.maxi.glosa.data.SourceKind
 import com.maxi.glosa.explain.LookupContext
-import com.maxi.glosa.explain.ToolException
+import com.maxi.glosa.net.HttpJson
+import com.maxi.glosa.net.NetworkException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -93,7 +94,7 @@ class WikipediaToolTest {
     fun `fails the lookup when Wikipedia answers with an error`() {
         server.enqueue(MockResponse(code = 503))
 
-        val failure = assertThrows(ToolException::class.java) { runBlocking { tool.run("market maker", aboutTheSpread) } }
+        val failure = assertThrows(NetworkException::class.java) { runBlocking { tool.run("market maker", aboutTheSpread) } }
 
         assertEquals("el servidor respondió 503", failure.message)
     }

@@ -4,6 +4,7 @@ import com.maxi.glosa.data.Source
 import com.maxi.glosa.data.SourceKind
 import com.maxi.glosa.explain.LookupContext
 import com.maxi.glosa.explain.ToolException
+import com.maxi.glosa.net.HttpJson
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse

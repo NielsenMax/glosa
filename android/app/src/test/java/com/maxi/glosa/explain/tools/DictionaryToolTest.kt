@@ -3,6 +3,7 @@ package com.maxi.glosa.explain.tools
 import com.maxi.glosa.data.Source
 import com.maxi.glosa.data.SourceKind
 import com.maxi.glosa.explain.LookupContext
+import com.maxi.glosa.net.HttpJson
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse

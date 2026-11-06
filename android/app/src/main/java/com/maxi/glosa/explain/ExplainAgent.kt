@@ -1,6 +1,7 @@
 package com.maxi.glosa.explain
 
 import com.maxi.glosa.data.Source
+import com.maxi.glosa.net.NetworkException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -82,6 +83,8 @@ class ExplainAgent(private val model: LanguageModel, tools: Collection<Tool>) {
         val findings = withTimeoutOrNull(TOOL_TIMEOUT_MS) { tools.getValue(call.tool).run(call.query, context) }
         if (findings == null) AgentEvent.ToolFailed(call, "tardó demasiado") else AgentEvent.ToolFinished(call, findings)
     } catch (e: ToolException) {
+        AgentEvent.ToolFailed(call, e.message.orEmpty())
+    } catch (e: NetworkException) {
         AgentEvent.ToolFailed(call, e.message.orEmpty())
     }
 

@@ -5,11 +5,13 @@ import com.maxi.glosa.data.SourceKind
 import com.maxi.glosa.explain.Finding
 import com.maxi.glosa.explain.LookupContext
 import com.maxi.glosa.explain.Tool
+import com.maxi.glosa.net.HttpJson
+import com.maxi.glosa.net.HttpStatusException
+import java.net.URLEncoder
+import java.util.Locale
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import org.json.JSONObject
-import java.net.URLEncoder
-import java.util.Locale
 
 /**
  * Wiktionary, two ways: the English Wiktionary's senses of the word in the book's language, keeping the

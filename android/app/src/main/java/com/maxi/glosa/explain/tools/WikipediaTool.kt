@@ -5,6 +5,7 @@ import com.maxi.glosa.data.SourceKind
 import com.maxi.glosa.explain.Finding
 import com.maxi.glosa.explain.LookupContext
 import com.maxi.glosa.explain.Tool
+import com.maxi.glosa.net.HttpJson
 import java.net.URLEncoder
 
 /**
