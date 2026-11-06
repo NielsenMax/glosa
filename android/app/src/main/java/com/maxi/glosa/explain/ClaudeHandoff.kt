@@ -1,4 +1,4 @@
-package com.maxi.lector.explain
+package com.maxi.glosa.explain
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData

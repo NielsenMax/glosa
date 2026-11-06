@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.maxi.lector.data.HighlightColor
+import com.maxi.glosa.data.HighlightColor
 
 @Composable
 fun HighlightSheet(viewModel: ReaderViewModel, highlightId: Long) {

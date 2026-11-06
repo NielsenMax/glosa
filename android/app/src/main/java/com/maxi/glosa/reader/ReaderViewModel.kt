@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -6,16 +6,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.GenAiException
-import com.maxi.lector.books.ReaderSession
-import com.maxi.lector.data.Bookmark
-import com.maxi.lector.data.Highlight
-import com.maxi.lector.data.HighlightColor
-import com.maxi.lector.explain.Exchange
-import com.maxi.lector.explain.ExplainMode
-import com.maxi.lector.explain.ExplainPrompts
-import com.maxi.lector.explain.NanoAvailability
-import com.maxi.lector.explain.Passage
-import com.maxi.lector.lectorApp
+import com.maxi.glosa.books.ReaderSession
+import com.maxi.glosa.data.Bookmark
+import com.maxi.glosa.data.Highlight
+import com.maxi.glosa.data.HighlightColor
+import com.maxi.glosa.explain.Exchange
+import com.maxi.glosa.explain.ExplainMode
+import com.maxi.glosa.explain.ExplainPrompts
+import com.maxi.glosa.explain.NanoAvailability
+import com.maxi.glosa.explain.Passage
+import com.maxi.glosa.glosaApp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +64,7 @@ data class ExplainUiState(
 )
 
 class ReaderViewModel(application: Application, savedState: SavedStateHandle) : AndroidViewModel(application) {
-    private val app = application.lectorApp
+    private val app = application.glosaApp
     private val bookId: Long = checkNotNull(savedState[ReaderActivity.EXTRA_BOOK_ID]) { "ReaderActivity needs a book id" }
     val session: ReaderSession = checkNotNull(app.openBooks.get(bookId)) { "Book $bookId was not opened before the reader" }
 

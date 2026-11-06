@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -1,4 +1,4 @@
-package com.maxi.lector.explain
+package com.maxi.glosa.explain
 
 /** What the reader selected, with the text around it as the book shows it. */
 data class Passage(

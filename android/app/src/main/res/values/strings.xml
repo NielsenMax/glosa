@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Lector</string>
+    <string name="app_name">Glosa</string>
     <string name="action_explain">Explicar</string>
     <string name="action_highlight">Resaltar</string>
     <string name="action_note">Nota</string>

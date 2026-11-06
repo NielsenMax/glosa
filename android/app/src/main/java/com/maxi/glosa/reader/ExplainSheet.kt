@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.maxi.lector.explain.ExplainMode
+import com.maxi.glosa.explain.ExplainMode
 
 @Composable
 fun ExplainSheet(viewModel: ReaderViewModel, onAskClaude: () -> Unit) {

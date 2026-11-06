@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "lector"
+rootProject.name = "glosa"
 include(":app")

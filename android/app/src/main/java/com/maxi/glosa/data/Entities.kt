@@ -1,4 +1,4 @@
-package com.maxi.lector.data
+package com.maxi.glosa.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey

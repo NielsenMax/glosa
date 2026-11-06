@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalReadiumApi::class)
 
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -24,12 +24,12 @@ import androidx.fragment.app.commitNow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.maxi.lector.R
-import com.maxi.lector.data.Highlight
-import com.maxi.lector.data.HighlightColor
-import com.maxi.lector.explain.ClaudeHandoff
-import com.maxi.lector.lectorApp
-import com.maxi.lector.ui.LectorTheme
+import com.maxi.glosa.R
+import com.maxi.glosa.data.Highlight
+import com.maxi.glosa.data.HighlightColor
+import com.maxi.glosa.explain.ClaudeHandoff
+import com.maxi.glosa.glosaApp
+import com.maxi.glosa.ui.GlosaTheme
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.DecorableNavigator
@@ -50,7 +50,7 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val bookId = intent.getLongExtra(EXTRA_BOOK_ID, -1)
-        val session = lectorApp.openBooks.get(bookId)
+        val session = glosaApp.openBooks.get(bookId)
         if (session == null) {
             super.onCreate(null)
             finish()
@@ -58,7 +58,7 @@ class ReaderActivity : AppCompatActivity() {
         }
         supportFragmentManager.fragmentFactory = EpubNavigatorFactory(session.publication).createFragmentFactory(
             initialLocator = session.book.locatorJson?.let { Locator.fromJSON(JSONObject(it)) },
-            initialPreferences = lectorApp.readerPreferences.preferences.value,
+            initialPreferences = glosaApp.readerPreferences.preferences.value,
             configuration = EpubNavigatorFragment.Configuration(selectionActionModeCallback = selectionCallback),
         )
         super.onCreate(savedInstanceState)
@@ -69,7 +69,7 @@ class ReaderActivity : AppCompatActivity() {
         root.addView(
             ComposeView(this).apply {
                 setContent {
-                    LectorTheme {
+                    GlosaTheme {
                         ReaderChrome(viewModel = viewModel, actions = chromeActions)
                     }
                 }

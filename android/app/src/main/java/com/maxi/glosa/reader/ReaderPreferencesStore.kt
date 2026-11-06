@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import android.content.Context
 import androidx.core.content.edit

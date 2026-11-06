@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.maxi.lector"
+    namespace = "com.maxi.glosa"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.maxi.lector"
+        applicationId = "com.maxi.glosa"
         minSdk = 31
         targetSdk = 36
         versionCode = 1

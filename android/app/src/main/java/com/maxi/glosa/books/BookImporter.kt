@@ -1,12 +1,12 @@
-package com.maxi.lector.books
+package com.maxi.glosa.books
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Size
-import com.maxi.lector.data.Book
-import com.maxi.lector.data.BookDao
+import com.maxi.glosa.data.Book
+import com.maxi.glosa.data.BookDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.readium.r2.shared.publication.services.coverFitting

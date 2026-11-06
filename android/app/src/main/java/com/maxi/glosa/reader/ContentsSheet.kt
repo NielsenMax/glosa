@@ -1,4 +1,4 @@
-package com.maxi.lector.reader
+package com.maxi.glosa.reader
 
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -49,8 +49,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.maxi.lector.data.Bookmark
-import com.maxi.lector.data.Highlight
+import com.maxi.glosa.data.Bookmark
+import com.maxi.glosa.data.Highlight
 import org.readium.r2.shared.publication.Locator
 import kotlin.math.roundToInt
 

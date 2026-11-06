@@ -1,7 +1,7 @@
-package com.maxi.lector.books
+package com.maxi.glosa.books
 
 import android.content.Context
-import com.maxi.lector.data.Book
+import com.maxi.glosa.data.Book
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse

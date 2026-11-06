@@ -1,4 +1,4 @@
-package com.maxi.lector.explain
+package com.maxi.glosa.explain
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

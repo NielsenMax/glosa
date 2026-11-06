@@ -1,6 +1,6 @@
-# lector
+# Glosa
 
-Lector de libros para Android con explicaciones de IA en el dispositivo.
+Lector de libros para Android que explica lo que no entendés, con IA en el propio teléfono. Una *glosa* es la nota que aclara un pasaje difícil de un texto.
 
 - Convierte PDFs (incluidos escaneos con OCR) a EPUB reflujable: texto que se adapta a la
   pantalla, tablas y figuras recortadas como imágenes, recuadros laterales como bloques aparte.

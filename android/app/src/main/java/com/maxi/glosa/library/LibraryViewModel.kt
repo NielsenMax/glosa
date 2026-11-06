@@ -1,13 +1,13 @@
-package com.maxi.lector.library
+package com.maxi.glosa.library
 
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maxi.lector.books.BookOpenException
-import com.maxi.lector.books.ReaderSession
-import com.maxi.lector.data.Book
-import com.maxi.lector.lectorApp
+import com.maxi.glosa.books.BookOpenException
+import com.maxi.glosa.books.ReaderSession
+import com.maxi.glosa.data.Book
+import com.maxi.glosa.glosaApp
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +25,7 @@ sealed interface LibraryEvent {
 }
 
 class LibraryViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application.lectorApp
+    private val app = application.glosaApp
 
     val books: StateFlow<List<Book>?> = app.database.books().observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -50,14 +50,31 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun open(book: Book) = viewModelScope.launch {
         _isBusy.value = true
         try {
-            val publication = app.bookOpener.open(File(book.filePath))
-            app.openBooks.put(ReaderSession(book, publication))
-            _events.send(LibraryEvent.OpenReader(book.id))
+            openReader(book)
         } catch (e: BookOpenException) {
             _events.send(LibraryEvent.Message(e.message.orEmpty()))
         } finally {
             _isBusy.value = false
         }
+    }
+
+    fun importAndOpen(uri: Uri) = viewModelScope.launch {
+        _isBusy.value = true
+        try {
+            val bookId = app.importer.import(uri)
+            val book = checkNotNull(app.database.books().get(bookId)) { "Imported book $bookId is missing from the library" }
+            openReader(book)
+        } catch (e: BookOpenException) {
+            _events.send(LibraryEvent.Message(e.message.orEmpty()))
+        } finally {
+            _isBusy.value = false
+        }
+    }
+
+    private suspend fun openReader(book: Book) {
+        val publication = app.bookOpener.open(File(book.filePath))
+        app.openBooks.put(ReaderSession(book, publication))
+        _events.send(LibraryEvent.OpenReader(book.id))
     }
 
     fun delete(book: Book) = viewModelScope.launch { app.importer.delete(book) }

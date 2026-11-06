@@ -1,4 +1,4 @@
-package com.maxi.lector.explain
+package com.maxi.glosa.explain
 
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
