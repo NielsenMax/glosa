@@ -7,12 +7,14 @@ import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.RenameColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Update
+import androidx.room.migration.AutoMigrationSpec
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,17 +27,39 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun get(id: Long): Book?
 
+    @Query("SELECT * FROM books WHERE id = :id")
+    fun observe(id: Long): Flow<Book?>
+
     @Insert
     suspend fun insert(book: Book): Long
 
     @Query("SELECT * FROM books WHERE title = :title AND author IS :author LIMIT 1")
     suspend fun findByTitle(title: String, author: String?): Book?
 
-    @Query("UPDATE books SET filePath = :filePath, coverPath = :coverPath WHERE id = :id")
-    suspend fun relink(id: Long, filePath: String, coverPath: String?)
+    @Query("UPDATE books SET epubPath = :epubPath, coverPath = :coverPath WHERE id = :id")
+    suspend fun relinkEpub(id: Long, epubPath: String, coverPath: String?)
 
-    @Query("UPDATE books SET locatorJson = :locatorJson, progression = :progression, lastOpenedAt = :openedAt WHERE id = :id")
-    suspend fun savePosition(id: Long, locatorJson: String, progression: Double, openedAt: Long)
+    /** A PDF found again after a reinstall converts again: the EPUB made from it did not survive either. */
+    @Query("UPDATE books SET pdfPath = :pdfPath, coverPath = :coverPath, epubPath = NULL, conversionError = NULL WHERE id = :id")
+    suspend fun relinkPdf(id: Long, pdfPath: String, coverPath: String?)
+
+    @Query("UPDATE books SET epubLocatorJson = :locatorJson, progression = :progression, lastOpenedAt = :openedAt WHERE id = :id")
+    suspend fun saveEpubPosition(id: Long, locatorJson: String, progression: Double, openedAt: Long)
+
+    @Query("UPDATE books SET pdfLocatorJson = :locatorJson, progression = :progression, lastOpenedAt = :openedAt WHERE id = :id")
+    suspend fun savePdfPosition(id: Long, locatorJson: String, progression: Double, openedAt: Long)
+
+    @Query("UPDATE books SET format = :format WHERE id = :id")
+    suspend fun setFormat(id: Long, format: BookFormat)
+
+    @Query("SELECT * FROM books WHERE pdfPath IS NOT NULL AND epubPath IS NULL AND conversionError IS NULL")
+    suspend fun awaitingConversion(): List<Book>
+
+    @Query("UPDATE books SET epubPath = :epubPath, conversionError = NULL WHERE id = :id")
+    suspend fun attachEpub(id: Long, epubPath: String)
+
+    @Query("UPDATE books SET conversionError = :error WHERE id = :id")
+    suspend fun failConversion(id: Long, error: String)
 
     @Delete
     suspend fun delete(book: Book)
@@ -137,11 +161,15 @@ class SourceListConverter {
     }
 }
 
+@RenameColumn(tableName = "books", fromColumnName = "filePath", toColumnName = "epubPath")
+@RenameColumn(tableName = "books", fromColumnName = "locatorJson", toColumnName = "epubLocatorJson")
+class AddPdfBooks : AutoMigrationSpec
+
 @Database(
     entities = [Book::class, Highlight::class, Bookmark::class, Explanation::class, ExplanationTurn::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3, spec = AddPdfBooks::class)],
 )
 @TypeConverters(SourceListConverter::class)
 abstract class LibraryDatabase : RoomDatabase() {

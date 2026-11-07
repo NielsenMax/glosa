@@ -31,12 +31,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.maxi.glosa.R
+import com.maxi.glosa.data.BookFormat
 import com.maxi.glosa.data.Explanation
 import com.maxi.glosa.data.Highlight
 import com.maxi.glosa.data.HighlightColor
 import com.maxi.glosa.explain.ClaudeHandoff
 import com.maxi.glosa.glosaApp
 import com.maxi.glosa.settings.Appearance
+import com.maxi.glosa.settings.Paper
 import com.maxi.glosa.ui.GlosaTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -49,6 +51,7 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
+import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.ImageFilter
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
@@ -66,17 +69,18 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val bookId = intent.getLongExtra(EXTRA_BOOK_ID, -1)
-        val session = glosaApp.openBooks.get(bookId)
+        val session = glosaApp.openBooks.get(bookId, BookFormat.Epub)
         if (session == null) {
             super.onCreate(null)
             finish()
             return
         }
         supportFragmentManager.fragmentFactory = EpubNavigatorFactory(session.publication).createFragmentFactory(
-            initialLocator = session.book.locatorJson?.let { Locator.fromJSON(JSONObject(it)) },
+            initialLocator = session.book.epubLocatorJson?.let { Locator.fromJSON(JSONObject(it)) },
             initialPreferences = pagePreferences(
                 glosaApp.readerPreferences.preferences.value,
                 glosaApp.settings.appearance.value,
+                glosaApp.settings.sepiaTone.value,
                 resources.configuration.isNightModeActive,
             ),
             configuration = EpubNavigatorFragment.Configuration(selectionActionModeCallback = selectionCallback),
@@ -91,7 +95,8 @@ class ReaderActivity : AppCompatActivity() {
             ComposeView(this).apply {
                 setContent {
                     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
-                    GlosaTheme(appearance) {
+                    val sepiaTone by viewModel.sepiaTone.collectAsStateWithLifecycle()
+                    GlosaTheme(appearance, sepiaTone) {
                         ReaderChrome(viewModel = viewModel, actions = chromeActions)
                     }
                 }
@@ -138,8 +143,19 @@ class ReaderActivity : AppCompatActivity() {
                 launch { navigator.currentLocator.collect(viewModel::onLocatorChanged) }
                 launch { viewModel.highlights.collect { navigator.applyDecorations(it.mapNotNull(::decoration), HIGHLIGHTS) } }
                 launch {
-                    combine(viewModel.preferences, viewModel.appearance, isNight, ::pagePreferences)
+                    combine(viewModel.preferences, viewModel.appearance, viewModel.sepiaTone, isNight, ::pagePreferences)
                         .collect(navigator::submitPreferences)
+                }
+                launch {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            is ReaderEvent.Open -> {
+                                startActivity(Readers.intent(this@ReaderActivity, viewModel.session.book.id, event.format))
+                                finish()
+                            }
+                            is ReaderEvent.Message -> Toast.makeText(this@ReaderActivity, event.text, Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
                 launch {
                     viewModel.explanations.collect { threads ->
@@ -171,9 +187,15 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     /** The app's appearance decides the page colors, so the book and the app chrome always match. */
-    private fun pagePreferences(stored: EpubPreferences, appearance: Appearance, isNight: Boolean): EpubPreferences {
+    private fun pagePreferences(stored: EpubPreferences, appearance: Appearance, sepiaTone: Float, isNight: Boolean): EpubPreferences {
         val theme = appearance.pageTheme(isNight)
-        return stored.copy(theme = theme, imageFilter = if (theme == Theme.DARK) ImageFilter.DARKEN else null)
+        val sepia = Paper.sepia(sepiaTone).takeIf { theme == Theme.SEPIA }
+        return stored.copy(
+            theme = theme,
+            imageFilter = if (theme == Theme.DARK) ImageFilter.DARKEN else null,
+            backgroundColor = sepia?.let { ReadiumColor(it.background) },
+            textColor = sepia?.let { ReadiumColor(it.ink) },
+        )
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

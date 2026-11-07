@@ -52,8 +52,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.data.Bookmark
 import com.maxi.glosa.data.ExplanationThread
 import com.maxi.glosa.data.Highlight
-import org.readium.r2.shared.publication.Locator
 import kotlin.math.roundToInt
+import org.readium.r2.shared.publication.Locator
 
 private enum class ContentsTab(val label: String) {
     Toc("Índice"),
@@ -86,9 +86,18 @@ fun ContentsSheet(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
 private fun TocList(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
     val locator by viewModel.currentLocator.collectAsStateWithLifecycle()
     val currentHref = locator?.href?.toString()?.substringBefore('#')
+    TocRows(
+        entries = viewModel.tableOfContents,
+        isCurrent = { it.link.href.toString().substringBefore('#') == currentHref },
+        onSelect = { actions.go(it.link) },
+    )
+}
+
+@Composable
+internal fun TocRows(entries: List<TocEntry>, isCurrent: (TocEntry) -> Boolean, onSelect: (TocEntry) -> Unit) {
     LazyColumn {
-        items(viewModel.tableOfContents) { entry ->
-            val isCurrent = entry.link.href.toString().substringBefore('#') == currentHref
+        items(entries) { entry ->
+            val isCurrent = isCurrent(entry)
             Text(
                 entry.title,
                 style = if (entry.depth == 0) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
@@ -96,7 +105,7 @@ private fun TocList(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { actions.go(entry.link) }
+                    .clickable { onSelect(entry) }
                     .padding(start = (20 + entry.depth * 16).dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
             )
         }

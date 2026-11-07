@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.maxi.glosa.settings.AppearancePicker
+import com.maxi.glosa.settings.AppearanceControls
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.TextAlign
 
@@ -32,6 +32,7 @@ private val fonts = listOf(null to "Original", FontFamily.SERIF to "Serif", Font
 fun SettingsSheet(viewModel: ReaderViewModel) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
+    val sepiaTone by viewModel.sepiaTone.collectAsStateWithLifecycle()
 
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -50,7 +51,7 @@ fun SettingsSheet(viewModel: ReaderViewModel) {
             }
         }
         Labeled("Apariencia") {
-            AppearancePicker(appearance, viewModel::setAppearance)
+            AppearanceControls(appearance, sepiaTone, viewModel::setAppearance, viewModel::setSepiaTone)
         }
         Labeled("Tipografía") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

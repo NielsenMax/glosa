@@ -1,5 +1,6 @@
 package com.maxi.glosa.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -7,19 +8,34 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
+/** The two ways to read a book imported as PDF: as printed, or reflowed from the EPUB converted from it. */
+enum class BookFormat { Epub, Pdf }
+
 @Entity(tableName = "books")
 data class Book(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
     val author: String?,
-    val filePath: String,
+    /** The reflowable text; for a PDF, null until its conversion finishes. */
+    val epubPath: String?,
+    val pdfPath: String? = null,
     val coverPath: String?,
-    val locatorJson: String? = null,
+    val epubLocatorJson: String? = null,
+    val pdfLocatorJson: String? = null,
     /** Fraction of the whole book read, 0.0 to 1.0. */
     val progression: Double = 0.0,
+    /** How the book opens next: the way it was last read. */
+    @ColumnInfo(defaultValue = "Epub") val format: BookFormat = BookFormat.Epub,
+    /** Why the PDF could not be converted; null while it converts and once it has. */
+    val conversionError: String? = null,
     val addedAt: Long,
     val lastOpenedAt: Long? = null,
-)
+) {
+    val isConverting: Boolean get() = pdfPath != null && epubPath == null && conversionError == null
+
+    /** The format the reader can open now: a PDF still converting, or one that could not be, only as printed. */
+    val readableFormat: BookFormat get() = if (epubPath == null) BookFormat.Pdf else if (pdfPath == null) BookFormat.Epub else format
+}
 
 @Entity(
     tableName = "highlights",

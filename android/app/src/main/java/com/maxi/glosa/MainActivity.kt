@@ -12,7 +12,7 @@ import androidx.core.content.IntentCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.library.LibraryScreen
 import com.maxi.glosa.library.LibraryViewModel
-import com.maxi.glosa.reader.ReaderActivity
+import com.maxi.glosa.reader.Readers
 import com.maxi.glosa.ui.GlosaTheme
 
 class MainActivity : ComponentActivity() {
@@ -23,12 +23,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val appearance by glosaApp.settings.appearance.collectAsStateWithLifecycle()
-            GlosaTheme(appearance) {
+            val sepiaTone by glosaApp.settings.sepiaTone.collectAsStateWithLifecycle()
+            GlosaTheme(appearance, sepiaTone) {
                 LibraryScreen(
                     viewModel = viewModel,
                     settings = glosaApp.settings,
                     updater = glosaApp.updater,
-                    onOpenReader = { startActivity(ReaderActivity.intent(this, it)) },
+                    onOpenReader = { bookId, format -> startActivity(Readers.intent(this, bookId, format)) },
                 )
             }
         }
@@ -50,7 +51,7 @@ class MainActivity : ComponentActivity() {
         openSharedBook(intent)
     }
 
-    /** An EPUB tapped in a file manager or shared from another app gets imported and opened. */
+    /** An EPUB or a PDF tapped in a file manager or shared from another app gets imported and opened. */
     private fun openSharedBook(intent: Intent) {
         val uri = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data

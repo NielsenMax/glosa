@@ -7,33 +7,42 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import com.maxi.glosa.settings.Appearance
+import com.maxi.glosa.settings.Paper
 
 /** [isSystemInDarkTheme] already reflects the app's own night mode, which [com.maxi.glosa.settings.AppSettings] sets. */
 @Composable
-fun GlosaTheme(appearance: Appearance, content: @Composable () -> Unit) {
+fun GlosaTheme(appearance: Appearance, sepiaTone: Float, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val colors = when {
         isSystemInDarkTheme() -> dynamicDarkColorScheme(context)
-        appearance == Appearance.Sepia -> dynamicLightColorScheme(context).sepia()
+        appearance == Appearance.Sepia -> dynamicLightColorScheme(context).on(Paper.sepia(sepiaTone))
         else -> dynamicLightColorScheme(context)
     }
     MaterialTheme(colorScheme = colors, content = content)
 }
 
-/** Warm paper surfaces that match Readium's sepia page (#FAF4E8). */
-private fun ColorScheme.sepia(): ColorScheme = copy(
-    background = Color(0xFFFAF4E8),
-    surface = Color(0xFFFAF4E8),
-    surfaceBright = Color(0xFFFDF8EE),
-    surfaceContainerLowest = Color(0xFFFDF8EE),
-    surfaceContainerLow = Color(0xFFF6EEDD),
-    surfaceContainer = Color(0xFFF1E7D3),
-    surfaceContainerHigh = Color(0xFFEBE0CA),
-    surfaceContainerHighest = Color(0xFFE5D8BF),
-    surfaceVariant = Color(0xFFE9DDC6),
-    onSurface = Color(0xFF2B2418),
-    onBackground = Color(0xFF2B2418),
-    onSurfaceVariant = Color(0xFF5A4E3B),
-)
+/** Surfaces of the same paper as the page, each container a shade darker, so the app matches the book. */
+private fun ColorScheme.on(paper: Paper): ColorScheme {
+    val background = Color(paper.background)
+    val ink = Color(paper.ink)
+    val shade = { fraction: Float -> lerp(background, SHADOW, fraction) }
+    return copy(
+        background = background,
+        surface = background,
+        surfaceBright = lerp(background, Color.White, 0.3f),
+        surfaceContainerLowest = lerp(background, Color.White, 0.3f),
+        surfaceContainerLow = shade(0.04f),
+        surfaceContainer = shade(0.08f),
+        surfaceContainerHigh = shade(0.12f),
+        surfaceContainerHighest = shade(0.16f),
+        surfaceVariant = shade(0.14f),
+        onSurface = ink,
+        onBackground = ink,
+        onSurfaceVariant = lerp(ink, background, 0.3f),
+    )
+}
+
+private val SHADOW = Color(0xFF6B5432)

@@ -59,20 +59,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxi.glosa.data.Book
+import com.maxi.glosa.data.BookFormat
 import com.maxi.glosa.settings.AppSettings
 import com.maxi.glosa.settings.AppSettingsSheet
 import com.maxi.glosa.update.UpdateBanner
 import com.maxi.glosa.update.Updater
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
-private val EPUB_TYPES = arrayOf("application/epub+zip", "application/octet-stream")
+private val BOOK_TYPES = arrayOf("application/epub+zip", "application/pdf", "application/octet-stream")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: Updater, onOpenReader: (Long) -> Unit) {
+fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: Updater, onOpenReader: (Long, BookFormat) -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
+    val conversions by viewModel.conversions.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<Book?>(null) }
@@ -85,7 +87,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: U
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is LibraryEvent.OpenReader -> onOpenReader(event.bookId)
+                is LibraryEvent.OpenReader -> onOpenReader(event.bookId, event.format)
                 is LibraryEvent.Message -> snackbar.showSnackbar(event.text)
             }
         }
@@ -104,7 +106,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: U
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { picker.launch(EPUB_TYPES) },
+                onClick = { picker.launch(BOOK_TYPES) },
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text("Agregar libro") },
             )
@@ -125,7 +127,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, settings: AppSettings, updater: U
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
                         items(list, key = { it.id }) { book ->
-                            BookCard(book, onOpen = { viewModel.open(book) }, onLongPress = { pendingDelete = book })
+                            BookCard(book, conversions[book.id], onOpen = { viewModel.open(book) }, onLongPress = { pendingDelete = book })
                         }
                     }
                 }
@@ -164,7 +166,7 @@ private fun EmptyLibrary() {
         Icon(Icons.Outlined.MenuBook, null, Modifier.padding(bottom = 16.dp), tint = MaterialTheme.colorScheme.primary)
         Text("Tu biblioteca está vacía", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Agregá un libro en EPUB desde el botón de abajo.",
+            "Agregá un libro en EPUB o en PDF desde el botón de abajo. Los PDF se convierten solos a EPUB para leerlos con letra ajustable.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -175,7 +177,7 @@ private fun EmptyLibrary() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BookCard(book: Book, onOpen: () -> Unit, onLongPress: () -> Unit) {
+private fun BookCard(book: Book, conversion: Float?, onOpen: () -> Unit, onLongPress: () -> Unit) {
     val cover by produceState<ImageBitmap?>(null, book.coverPath) {
         value = book.coverPath?.let { path -> withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() } }
     }
@@ -202,6 +204,9 @@ private fun BookCard(book: Book, onOpen: () -> Unit, onLongPress: () -> Unit) {
         book.author?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
+        conversionStatus(book, conversion)?.let {
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 2)
+        }
         if (book.progression > 0) {
             LinearProgressIndicator(
                 progress = { book.progression.toFloat() },
@@ -214,4 +219,13 @@ private fun BookCard(book: Book, onOpen: () -> Unit, onLongPress: () -> Unit) {
             )
         }
     }
+}
+
+/** Only PDFs say anything: whether they can be read as text yet. */
+private fun conversionStatus(book: Book, conversion: Float?): String? = when {
+    book.pdfPath == null -> null
+    book.conversionError != null -> "Solo PDF: no se pudo convertir"
+    conversion != null -> "Convirtiendo a EPUB… ${(conversion * 100).roundToInt()}%"
+    book.isConverting -> "En espera para convertir a EPUB"
+    else -> "PDF y EPUB"
 }

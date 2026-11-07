@@ -31,16 +31,23 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
 
         <activity
             android:name=".reader.ReaderActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false" />
+
+        <activity
+            android:name=".reader.PdfReaderActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:exported="false" />
 

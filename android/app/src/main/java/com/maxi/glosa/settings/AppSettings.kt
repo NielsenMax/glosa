@@ -22,6 +22,14 @@ enum class Appearance(val label: String) {
         Dark -> Theme.DARK
     }
 
+    /** Colors to give a page that has none of its own, like a PDF's; null leaves it as printed. */
+    fun paper(isNight: Boolean, sepiaTone: Float): Paper? = when (this) {
+        System -> if (isNight) Paper.Night else null
+        Light -> null
+        Sepia -> Paper.sepia(sepiaTone)
+        Dark -> Paper.Night
+    }
+
     val nightMode: Int
         get() = when (this) {
             System -> UiModeManager.MODE_NIGHT_AUTO
@@ -40,6 +48,11 @@ class AppSettings(context: Context) {
     )
     val appearance: StateFlow<Appearance> = _appearance.asStateFlow()
 
+    private val _sepiaTone = MutableStateFlow(prefs.getFloat(KEY_SEPIA_TONE, DEFAULT_SEPIA_TONE))
+
+    /** How warm the sepia appearance is, from 0 to 1. */
+    val sepiaTone: StateFlow<Float> = _sepiaTone.asStateFlow()
+
     private val _webSearchKey = MutableStateFlow(prefs.getString(KEY_WEB_SEARCH, null))
 
     /** Tavily API key; without one, the assistant looks things up only in the book and on Wikipedia. */
@@ -55,6 +68,11 @@ class AppSettings(context: Context) {
         uiModeManager.setApplicationNightMode(appearance.nightMode)
     }
 
+    fun setSepiaTone(tone: Float) {
+        _sepiaTone.value = tone
+        prefs.edit { putFloat(KEY_SEPIA_TONE, tone) }
+    }
+
     fun setWebSearchKey(key: String) {
         val trimmed = key.trim().ifEmpty { null }
         _webSearchKey.value = trimmed
@@ -64,5 +82,9 @@ class AppSettings(context: Context) {
     private companion object {
         const val KEY_APPEARANCE = "appearance"
         const val KEY_WEB_SEARCH = "tavily_api_key"
+        const val KEY_SEPIA_TONE = "sepia_tone"
+
+        /** Close to the sepia page Readium draws by default. */
+        const val DEFAULT_SEPIA_TONE = 0.2f
     }
 }

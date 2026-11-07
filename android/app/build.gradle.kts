@@ -22,6 +22,9 @@ android {
         targetSdk = 36
         versionCode = commitCount
         versionName = "0.3.$commitCount"
+
+        // PDFium ships a native library per ABI; phones that run Gemini Nano, and the emulator on Apple silicon, are all arm64.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     signingConfigs {
@@ -55,6 +58,12 @@ android {
     buildFeatures {
         compose = true
     }
+
+    packaging {
+        // BouncyCastle, which PdfBox brings for encrypted PDFs, ships data tables for post-quantum
+        // ciphers that no PDF uses.
+        resources.excludes += "org/bouncycastle/pqc/**"
+    }
 }
 
 ksp {
@@ -84,6 +93,8 @@ dependencies {
     implementation(libs.readium.shared)
     implementation(libs.readium.streamer)
     implementation(libs.readium.navigator)
+    implementation(libs.readium.adapter.pdfium)
+    implementation(libs.pdfbox.android)
     implementation(libs.mlkit.genai.prompt)
 
     testImplementation(libs.junit)

@@ -2,6 +2,7 @@ package com.maxi.glosa
 
 import android.app.Application
 import android.content.Context
+import com.maxi.glosa.books.BookConverter
 import com.maxi.glosa.books.BookImporter
 import com.maxi.glosa.books.BookOpener
 import com.maxi.glosa.books.OpenBooks
@@ -20,7 +21,8 @@ import kotlinx.coroutines.SupervisorJob
 class GlosaApp : Application() {
     val database by lazy { LibraryDatabase.open(this) }
     val bookOpener by lazy { BookOpener(this) }
-    val importer by lazy { BookImporter(this, bookOpener, database.books()) }
+    val converter by lazy { BookConverter(this, database.books(), CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
+    val importer by lazy { BookImporter(this, bookOpener, database.books(), converter) }
     val openBooks = OpenBooks()
     val geminiNano by lazy { GeminiNano() }
     val readerPreferences by lazy { ReaderPreferencesStore(this) }
@@ -46,6 +48,7 @@ class GlosaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         settings = AppSettings(this)
+        converter.resumePending()
     }
 }
 

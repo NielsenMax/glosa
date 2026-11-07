@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -44,9 +46,29 @@ fun AppearancePicker(selected: Appearance, onSelect: (Appearance) -> Unit) {
     }
 }
 
+/** The appearance, and with sepia, how warm the paper looks. */
+@Composable
+fun AppearanceControls(appearance: Appearance, sepiaTone: Float, onAppearance: (Appearance) -> Unit, onSepiaTone: (Float) -> Unit) {
+    Column {
+        AppearancePicker(appearance, onAppearance)
+        if (appearance == Appearance.Sepia) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Suave", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = sepiaTone,
+                    onValueChange = onSepiaTone,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                )
+                Text("Intenso", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
 @Composable
 fun AppSettingsSheet(settings: AppSettings, updater: Updater) {
     val appearance by settings.appearance.collectAsStateWithLifecycle()
+    val sepiaTone by settings.sepiaTone.collectAsStateWithLifecycle()
     val savedKey by settings.webSearchKey.collectAsStateWithLifecycle()
     var key by rememberSaveable { mutableStateOf(savedKey.orEmpty()) }
     val context = LocalContext.current
@@ -60,7 +82,7 @@ fun AppSettingsSheet(settings: AppSettings, updater: Updater) {
             .padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
     ) {
         Text("Apariencia", style = MaterialTheme.typography.titleMedium)
-        AppearancePicker(appearance, settings::setAppearance)
+        AppearanceControls(appearance, sepiaTone, settings::setAppearance, settings::setSepiaTone)
         Text(
             "Automático sigue el modo oscuro del teléfono. Se aplica a la biblioteca y a las páginas del libro.",
             style = MaterialTheme.typography.bodySmall,

@@ -2,9 +2,11 @@
 
 Lector de libros para Android que explica lo que no entendés, con IA en el propio teléfono. Una *glosa* es la nota que aclara un pasaje difícil de un texto.
 
-- Convierte PDFs (incluidos escaneos con OCR) a EPUB reflujable: texto que se adapta a la
-  pantalla, tablas y figuras recortadas como imágenes, recuadros laterales como bloques aparte.
-- Guarda el progreso de lectura de cada libro.
+- Lee EPUB y PDF, y guarda el progreso de cada libro.
+- Convierte en el propio teléfono los PDF (incluidos escaneos con OCR) a EPUB reflujable: texto que
+  se adapta a la pantalla, tablas y figuras recortadas como imágenes, notas al margen y al pie como
+  bloques aparte. Un mismo libro se puede leer como PDF o como EPUB y pasar de uno a otro en la
+  misma página.
 - Permite seleccionar un término o un pasaje y pedir que lo explique, usando Gemini Nano
   en el teléfono, que antes de responder busca en el libro, en tus notas, en Wikipedia, en
   Wiktionary y en la web; o pasando la consulta ya armada a la app de Claude.
@@ -13,16 +15,20 @@ Lector de libros para Android que explica lo que no entendés, con IA en el prop
 
 | Parte | Estado |
 |---|---|
-| `converter/` — conversor PDF → EPUB en Python | Funciona; probado con *Trading and Exchanges* (Harris, 2002) |
-| `android/` — app | Biblioteca, lector, resaltados, notas, marcadores, búsqueda, modo oscuro, "Explicar" con Gemini Nano y herramientas de búsqueda, historial de explicaciones y pase a Claude |
+| `converter/` — prototipo del conversor en Python | Funciona con perfil; probado con *Trading and Exchanges* (Harris, 2002) |
+| `android/` — app | Biblioteca, lector de EPUB y de PDF, conversión de PDF a EPUB en el teléfono, resaltados, notas, marcadores, búsqueda, modo oscuro y sepia graduable, "Explicar" con Gemini Nano y herramientas de búsqueda, historial de explicaciones y pase a Claude |
 
 ## App
 
-Kotlin + Jetpack Compose, Readium Kotlin Toolkit para leer EPUB, Room para la biblioteca y las
-anotaciones, ML Kit Prompt API para Gemini Nano.
+Kotlin + Jetpack Compose, Readium Kotlin Toolkit para leer EPUB y PDF, PdfBox para convertir PDF,
+Room para la biblioteca y las anotaciones, ML Kit Prompt API para Gemini Nano.
 
 - **Biblioteca**: portadas, porcentaje leído, se ordena por último abierto. Mantener apretado un
-  libro para quitarlo.
+  libro para quitarlo. Acepta EPUB y PDF, desde el botón o abiertos desde otra app.
+- **PDF**: se lee apenas se agrega, tal como está impreso, y mientras tanto se convierte a EPUB
+  (la tarjeta muestra el avance). Ya convertido, el botón de la barra pasa del PDF al texto y
+  viceversa, en la misma página. Detalle en `docs/adr/0003-conversion-en-el-telefono.md` y
+  `docs/adr/0007-pdf-y-epub-del-mismo-libro.md`.
 - **Lectura**: tocar los bordes pasa de página; tocar el centro muestra u oculta los controles.
   La posición se guarda sola.
 - **Selección**: mantener apretado sobre el texto → Explicar, Resaltar, Nota o Copiar.
@@ -38,7 +44,8 @@ anotaciones, ML Kit Prompt API para Gemini Nano.
 - **Índice / Buscar / Notas / Explicaciones / Marcadores** en un mismo panel. Las notas se
   exportan en Markdown.
 - **Apariencia**: automático (sigue al teléfono), claro, sepia u oscuro, para la biblioteca y las
-  páginas a la vez. Se cambia desde Ajustes en la biblioteca o desde el panel de letra al leer.
+  páginas a la vez, también las del PDF. El sepia tiene un control para elegir qué tan cálido es el
+  papel. Se cambia desde Ajustes en la biblioteca o desde el panel de letra al leer.
 - **Lectura**: tamaño, tipografía, interlineado, márgenes, páginas o desplazamiento, alineación.
 
 ### Instalar y actualizar
@@ -61,7 +68,10 @@ Para firmar la release, `~/.gradle/gradle.properties` necesita `glosa.keystore`,
 `glosa.keystore.password` y `glosa.key.alias`; sin eso sale `app-release-unsigned.apk`. Una
 versión firmada con otra clave no se puede instalar encima de la publicada.
 
-## Conversor
+## Conversor de escritorio
+
+La app convierte sola (ADR 3). Este prototipo en Python sigue sirviendo para un libro con perfil,
+donde se corrigen a mano los capítulos y las páginas.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r converter/requirements.txt
@@ -89,7 +99,8 @@ Ver las decisiones en `docs/adr/`. En orden:
 2. ~~"Explicar" sobre una selección con Gemini Nano y pase a Claude.~~
 3. ~~Herramientas de búsqueda para el asistente, historial de explicaciones y modo oscuro.~~
 4. ~~Actualizaciones automáticas desde GitHub Releases.~~
-5. Importar PDF y convertirlo en el teléfono, portando el conversor a Kotlin sobre MuPDF.
-6. Números de página impresos: el conversor emite `page-list` y el lector los muestra.
+5. ~~Importar PDF, leerlo y convertirlo en el teléfono; pasar del PDF al EPUB en la misma página.~~
+6. Números de página impresos: el conversor ya emite `page-list` con las páginas del PDF; falta
+   reconocer los folios impresos y mostrarlos al leer.
 7. Glosario por libro con los términos ya explicados y tarjetas de repaso.
 8. Lectura en voz alta (Readium `TtsNavigator`) y visor ampliable de figuras.

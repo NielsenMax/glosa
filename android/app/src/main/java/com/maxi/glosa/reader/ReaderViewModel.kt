@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.maxi.glosa.books.BookOpenException
 import com.maxi.glosa.books.ReaderSession
+import com.maxi.glosa.data.BookFormat
 import com.maxi.glosa.data.Bookmark
 import com.maxi.glosa.data.Explanation
 import com.maxi.glosa.data.ExplanationThread
@@ -23,14 +25,18 @@ import com.maxi.glosa.explain.tools.WebSearchTool
 import com.maxi.glosa.explain.tools.WikipediaTool
 import com.maxi.glosa.glosaApp
 import com.maxi.glosa.settings.Appearance
+import kotlin.math.abs
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,9 +44,9 @@ import org.json.JSONObject
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.getOrElse
-import kotlin.math.abs
 
 data class TocEntry(val title: String, val link: Link, val depth: Int)
 
@@ -50,6 +56,12 @@ data class SearchState(
     val isSearching: Boolean = false,
     val error: String? = null,
 )
+
+sealed interface ReaderEvent {
+    /** Show the book in the other [format]: the reader for it has its session ready. */
+    data class Open(val format: BookFormat) : ReaderEvent
+    data class Message(val text: String) : ReaderEvent
+}
 
 sealed interface ReaderSheet {
     data object Contents : ReaderSheet
@@ -61,9 +73,15 @@ sealed interface ReaderSheet {
 class ReaderViewModel(application: Application, savedState: SavedStateHandle) : AndroidViewModel(application) {
     private val app = application.glosaApp
     private val bookId: Long = checkNotNull(savedState[ReaderActivity.EXTRA_BOOK_ID]) { "ReaderActivity needs a book id" }
-    val session: ReaderSession = checkNotNull(app.openBooks.get(bookId)) { "Book $bookId was not opened before the reader" }
+    val session: ReaderSession = checkNotNull(app.openBooks.get(bookId, BookFormat.Epub)) { "Book $bookId was not opened before the reader" }
 
-    val tableOfContents: List<TocEntry> = flatten(session.publication.tableOfContents, 0)
+    /** A book converted from a PDF can show the page it came from. */
+    val canOpenAsPdf: Boolean = session.book.pdfPath != null
+
+    private val _events = Channel<ReaderEvent>(Channel.BUFFERED)
+    val events: Flow<ReaderEvent> = _events.receiveAsFlow()
+
+    val tableOfContents: List<TocEntry> = tocEntries(session.publication.tableOfContents)
     val preferences: StateFlow<EpubPreferences> = app.readerPreferences.preferences
 
     private val _currentLocator = MutableStateFlow<Locator?>(null)
@@ -76,6 +94,7 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     val sheet: StateFlow<ReaderSheet?> = _sheet.asStateFlow()
 
     val appearance: StateFlow<Appearance> = app.settings.appearance
+    val sepiaTone: StateFlow<Float> = app.settings.sepiaTone
     val canSearchWeb: StateFlow<Boolean> = app.settings.webSearchKey.map { it != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, app.settings.webSearchKey.value != null)
 
@@ -135,7 +154,7 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
         savePositionJob?.cancel()
         savePositionJob = viewModelScope.launch {
             delay(600)
-            app.database.books().savePosition(
+            app.database.books().saveEpubPosition(
                 id = bookId,
                 locatorJson = locator.toJSON().toString(),
                 progression = locator.locations.totalProgression ?: 0.0,
@@ -162,6 +181,28 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     fun updatePreferences(transform: (EpubPreferences) -> EpubPreferences) = app.readerPreferences.update(transform)
 
     fun setAppearance(appearance: Appearance) = app.settings.setAppearance(appearance)
+
+    fun setSepiaTone(tone: Float) = app.settings.setSepiaTone(tone)
+
+    /** Opens the PDF this EPUB was converted from, at the page being read. */
+    fun openAsPdf() = viewModelScope.launch {
+        val books = app.database.books()
+        val pdf = try {
+            app.bookOpener.open(session.book, BookFormat.Pdf)
+        } catch (e: BookOpenException) {
+            _events.send(ReaderEvent.Message(e.message.orEmpty()))
+            return@launch
+        }
+        val here = currentLocator.value
+        here?.let { books.saveEpubPosition(bookId, it.toJSON().toString(), it.locations.totalProgression ?: 0.0, System.currentTimeMillis()) }
+        val page = here?.let { session.publication.pageMap().pageAt(it.href.toString(), it.locations.progression ?: 0.0) } ?: 1
+        pdf.publication.positions().let { positions -> positions.getOrNull(page - 1) ?: positions.lastOrNull() }?.let { target ->
+            books.savePdfPosition(bookId, target.toJSON().toString(), target.locations.totalProgression ?: 0.0, System.currentTimeMillis())
+        }
+        books.setFormat(bookId, BookFormat.Pdf)
+        app.openBooks.put(pdf.copy(book = checkNotNull(books.get(bookId)) { "Book $bookId is gone from the library" }))
+        _events.send(ReaderEvent.Open(BookFormat.Pdf))
+    }
 
     fun addHighlight(locator: Locator, color: HighlightColor) = viewModelScope.launch {
         insertHighlight(locator, color, note = null)
@@ -300,16 +341,16 @@ class ReaderViewModel(application: Application, savedState: SavedStateHandle) : 
     }
 
     override fun onCleared() {
-        app.openBooks.close(bookId)
+        app.openBooks.close(session)
     }
 
     private companion object {
         const val MAX_SEARCH_HITS = 300
-
-        fun flatten(links: List<Link>, depth: Int): List<TocEntry> = links.flatMap { link ->
-            listOf(TocEntry(link.title ?: link.href.toString(), link, depth)) + flatten(link.children, depth + 1)
-        }
     }
+}
+
+internal fun tocEntries(links: List<Link>, depth: Int = 0): List<TocEntry> = links.flatMap { link ->
+    listOf(TocEntry(link.title ?: link.href.toString(), link, depth)) + tocEntries(link.children, depth + 1)
 }
 
 fun Highlight.locator(): Locator? = Locator.fromJSON(JSONObject(locatorJson))

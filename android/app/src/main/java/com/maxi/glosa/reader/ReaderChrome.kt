@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,9 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.roundToInt
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import kotlin.math.roundToInt
 
 interface ReaderChromeActions {
     fun close()
@@ -67,15 +69,23 @@ fun ReaderChrome(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
             exit = slideOutVertically { -it } + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            TopBar(
-                title = viewModel.session.book.title,
-                chapter = locator?.title,
-                isBookmarked = bookmark != null,
-                onClose = actions::close,
-                onBookmark = viewModel::toggleBookmark,
-                onContents = { viewModel.showSheet(ReaderSheet.Contents) },
-                onSettings = { viewModel.showSheet(ReaderSheet.Settings) },
-            )
+            TopBar(title = viewModel.session.book.title, subtitle = locator?.title, onClose = actions::close) {
+                val isBookmarked = bookmark != null
+                IconButton(onClick = viewModel::toggleBookmark) {
+                    Icon(
+                        if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        if (isBookmarked) "Quitar marcador" else "Marcar esta página",
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                if (viewModel.canOpenAsPdf) {
+                    IconButton(onClick = viewModel::openAsPdf) { Icon(Icons.Filled.PictureAsPdf, "Ver esta página en el PDF original") }
+                }
+                IconButton(onClick = { viewModel.showSheet(ReaderSheet.Contents) }) {
+                    Icon(Icons.AutoMirrored.Filled.List, "Índice, notas, marcadores y explicaciones")
+                }
+                IconButton(onClick = { viewModel.showSheet(ReaderSheet.Settings) }) { Icon(Icons.Filled.TextFields, "Letra y apariencia") }
+            }
         }
         AnimatedVisibility(
             visible = isChromeVisible,
@@ -83,7 +93,7 @@ fun ReaderChrome(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            BottomBar(locator = locator, onSeek = actions::goToProgression)
+            BottomBar(label = locator?.title, progression = locator?.locations?.totalProgression, onSeek = actions::goToProgression)
         }
     }
 
@@ -100,15 +110,7 @@ fun ReaderChrome(viewModel: ReaderViewModel, actions: ReaderChromeActions) {
 }
 
 @Composable
-private fun TopBar(
-    title: String,
-    chapter: String?,
-    isBookmarked: Boolean,
-    onClose: () -> Unit,
-    onBookmark: () -> Unit,
-    onContents: () -> Unit,
-    onSettings: () -> Unit,
-) {
+internal fun TopBar(title: String, subtitle: String?, onClose: () -> Unit, actions: @Composable RowScope.() -> Unit) {
     Surface(tonalElevation = 3.dp, shadowElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -117,7 +119,7 @@ private fun TopBar(
             IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver a la biblioteca") }
             Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                chapter?.let {
+                subtitle?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
@@ -127,30 +129,21 @@ private fun TopBar(
                     )
                 }
             }
-            IconButton(onClick = onBookmark) {
-                Icon(
-                    if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                    if (isBookmarked) "Quitar marcador" else "Marcar esta página",
-                    tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            IconButton(onClick = onContents) { Icon(Icons.AutoMirrored.Filled.List, "Índice, notas, marcadores y explicaciones") }
-            IconButton(onClick = onSettings) { Icon(Icons.Filled.TextFields, "Letra y apariencia") }
+            actions()
         }
     }
 }
 
 @Composable
-private fun BottomBar(locator: Locator?, onSeek: (Double) -> Unit) {
-    val progression = locator?.locations?.totalProgression?.toFloat() ?: 0f
+internal fun BottomBar(label: String?, progression: Double?, onSeek: (Double) -> Unit) {
     var dragging by remember { mutableStateOf<Float?>(null) }
-    val shown = dragging ?: progression
+    val shown = dragging ?: progression?.toFloat() ?: 0f
 
     Surface(tonalElevation = 3.dp, shadowElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    locator?.title.orEmpty(),
+                    label.orEmpty(),
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

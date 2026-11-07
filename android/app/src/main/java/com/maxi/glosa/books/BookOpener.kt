@@ -2,13 +2,15 @@ package com.maxi.glosa.books
 
 import android.content.Context
 import com.maxi.glosa.data.Book
+import com.maxi.glosa.data.BookFormat
+import java.io.File
+import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.parser.DefaultPublicationParser
-import java.io.File
 
 class BookOpenException(message: String) : Exception(message)
 
@@ -16,7 +18,7 @@ class BookOpener(context: Context) {
     private val httpClient = DefaultHttpClient()
     private val assetRetriever = AssetRetriever(context.contentResolver, httpClient)
     private val publicationOpener = PublicationOpener(
-        DefaultPublicationParser(context, httpClient, assetRetriever, pdfFactory = null),
+        DefaultPublicationParser(context, httpClient, assetRetriever, pdfFactory = PdfiumDocumentFactory(context)),
     )
 
     suspend fun open(file: File): Publication {
@@ -25,25 +27,36 @@ class BookOpener(context: Context) {
         }
         return publicationOpener.open(asset, allowUserInteraction = false).getOrElse {
             asset.close()
-            throw BookOpenException("${file.name} no es un EPUB que se pueda abrir: ${it.message}")
+            throw BookOpenException("${file.name} no es un EPUB ni un PDF que se pueda abrir: ${it.message}")
         }
+    }
+
+    /** Opens the book in [format], which must be one the book has. */
+    suspend fun open(book: Book, format: BookFormat): ReaderSession {
+        val path = when (format) {
+            BookFormat.Epub -> book.epubPath
+            BookFormat.Pdf -> book.pdfPath
+        } ?: throw BookOpenException("«${book.title}» no está disponible como ${format.name.uppercase()}")
+        return ReaderSession(book, format, open(File(path)))
     }
 }
 
-data class ReaderSession(val book: Book, val publication: Publication)
+data class ReaderSession(val book: Book, val format: BookFormat, val publication: Publication)
 
-/** Publications opened from the library and handed to the reader screen. Main thread only. */
+/** Publications opened from the library and handed to a reader screen. Main thread only. */
 class OpenBooks {
-    private val sessions = mutableMapOf<Long, ReaderSession>()
+    private val sessions = mutableMapOf<Pair<Long, BookFormat>, ReaderSession>()
 
     fun put(session: ReaderSession) {
-        close(session.book.id)
-        sessions[session.book.id] = session
+        sessions[session.book.id to session.format] = session
     }
 
-    fun get(bookId: Long): ReaderSession? = sessions[bookId]
+    fun get(bookId: Long, format: BookFormat): ReaderSession? = sessions[bookId to format]
 
-    fun close(bookId: Long) {
-        sessions.remove(bookId)?.publication?.close()
+    /** Closes the session's publication; a session opened since for the same book and format stays. */
+    fun close(session: ReaderSession) {
+        val key = session.book.id to session.format
+        if (sessions[key] === session) sessions.remove(key)
+        session.publication.close()
     }
 }

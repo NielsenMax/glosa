@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maxi.glosa.books.BookOpenException
-import com.maxi.glosa.books.ReaderSession
 import com.maxi.glosa.data.Book
+import com.maxi.glosa.data.BookFormat
 import com.maxi.glosa.glosaApp
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -17,10 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
 
 sealed interface LibraryEvent {
-    data class OpenReader(val bookId: Long) : LibraryEvent
+    data class OpenReader(val bookId: Long, val format: BookFormat) : LibraryEvent
     data class Message(val text: String) : LibraryEvent
 }
 
@@ -29,6 +28,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     val books: StateFlow<List<Book>?> = app.database.books().observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Share converted to EPUB so far of each PDF being converted. */
+    val conversions: StateFlow<Map<Long, Float>> = app.converter.progress
 
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()
@@ -72,9 +74,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun openReader(book: Book) {
-        val publication = app.bookOpener.open(File(book.filePath))
-        app.openBooks.put(ReaderSession(book, publication))
-        _events.send(LibraryEvent.OpenReader(book.id))
+        val format = book.readableFormat
+        app.openBooks.put(app.bookOpener.open(book, format))
+        _events.send(LibraryEvent.OpenReader(book.id, format))
     }
 
     fun delete(book: Book) = viewModelScope.launch { app.importer.delete(book) }
